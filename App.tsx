@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Project, AppState, Asset } from './types';
+import { Project, AppState, Asset, ProjectVersion } from './types';
 import { STAGES } from './constants';
 import { Sidebar } from './components/Sidebar';
 import { Workspace } from './components/Workspace';
@@ -257,14 +257,50 @@ const App: React.FC = () => {
   const updateProjectNotes = useCallback((notes: string) => {
     setState(prev => {
       if (!prev.activeProjectId) return prev;
+      const p = prev.projects[prev.activeProjectId];
+      
+      // Versioning Logic:
+      // Save the *current* (old) state to history before updating to new notes.
+      const currentVersion: ProjectVersion = {
+        timestamp: new Date().toISOString(),
+        notes: p.notes
+      };
+      
+      // Add to history, keep max 3
+      const newHistory = [currentVersion, ...(p.history || [])].slice(0, 3);
+
       return {
         ...prev,
         projects: {
           ...prev.projects,
-          [prev.activeProjectId]: { ...prev.projects[prev.activeProjectId], notes }
+          [p.id]: { ...p, notes, history: newHistory }
         }
       };
     });
+  }, []);
+
+  const restoreProjectVersion = useCallback((version: ProjectVersion) => {
+    setState(prev => {
+      if (!prev.activeProjectId) return prev;
+      const p = prev.projects[prev.activeProjectId];
+      
+      // When restoring, we also save the state *before* restore to history, 
+      // so you can "undo" the restore if needed.
+      const currentVersion: ProjectVersion = {
+        timestamp: new Date().toISOString(),
+        notes: p.notes
+      };
+      const newHistory = [currentVersion, ...(p.history || [])].slice(0, 3);
+
+      return {
+        ...prev,
+        projects: {
+          ...prev.projects,
+          [p.id]: { ...p, notes: version.notes, history: newHistory }
+        }
+      };
+    });
+    setToast({ message: 'Version restored', type: 'success' });
   }, []);
 
   // Helper to handle cloud vs local file logic
@@ -445,6 +481,7 @@ const App: React.FC = () => {
           project={activeProject}
           updateProject={updateProject}
           updateProjectNotes={updateProjectNotes}
+          restoreProjectVersion={restoreProjectVersion}
           deleteAsset={deleteAsset}
           onReplaceAsset={handleReplaceAsset}
           openTemplates={() => setIsTemplatesOpen(true)}

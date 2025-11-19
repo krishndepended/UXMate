@@ -1,19 +1,21 @@
 
 // REMOVED_AI: removed AI integration - local only
-import React, { useState, useEffect, useRef } from 'react';
-import { Project } from '../types';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Project, ProjectVersion } from '../types';
 import { STAGES } from '../constants';
 import { Button } from './ui/Button';
-import { IconDownload, IconTrash, IconFile, IconEdit, IconEye, IconReplace } from './ui/Icons';
+import { IconDownload, IconTrash, IconFile, IconEdit, IconReplace, IconHistory } from './ui/Icons';
 import { ProgressRing } from './ui/ProgressRing';
 import { downloadCaseStudy, exportCaseToPDF } from '../utils/exporter';
 import { AssetCard } from './ui/AssetCard';
 import { ContextMenu } from './ui/ContextMenu';
+import { HistoryModal } from './HistoryModal';
 
 interface WorkspaceProps {
   project: Project | null;
   updateProject: (id: string, updates: Partial<Project>) => void;
   updateProjectNotes: (notes: string) => void;
+  restoreProjectVersion: (version: ProjectVersion) => void;
   deleteAsset: (index: number) => void;
   onReplaceAsset: (index: number, file: File) => void;
   openTemplates: () => void;
@@ -24,14 +26,18 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   project,
   updateProject,
   updateProjectNotes,
+  restoreProjectVersion,
   deleteAsset,
   onReplaceAsset,
   openTemplates,
   clearProjectData
 }) => {
   const [notes, setNotes] = useState('');
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'idle'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'idle' | 'modified'>('idle');
   
+  // History Modal State
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
   // Inline Editing States
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleVal, setEditTitleVal] = useState('');
@@ -50,23 +56,50 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const [replaceIndex, setReplaceIndex] = useState<number | null>(null);
 
-  useEffect(() => {
-    setNotes(project?.notes || '');
-  }, [project?.id]);
+  // Ref for notes to be accessible in interval
+  const notesRef = useRef(notes);
 
   useEffect(() => {
+    if (project) {
+      setNotes(project.notes || '');
+      notesRef.current = project.notes || '';
+    }
+  }, [project?.id, project?.notes]); // Update local state when project switches or external restore
+
+  // Update Ref when local typing occurs
+  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newVal = e.target.value;
+    setNotes(newVal);
+    notesRef.current = newVal;
+    if (saveStatus !== 'modified' && newVal !== project?.notes) {
+      setSaveStatus('modified');
+    }
+  };
+
+  // Autosave Logic
+  const handleSave = useCallback(() => {
     if (!project) return;
-    if (notes === project.notes) return;
+    if (notesRef.current !== project.notes) {
+      setSaveStatus('saving');
+      // Small delay to show "Saving..." text
+      setTimeout(() => {
+        updateProjectNotes(notesRef.current);
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      }, 500);
+    }
+  }, [project, updateProjectNotes]);
 
-    setSaveStatus('saving');
-    const timer = setTimeout(() => {
-      updateProjectNotes(notes);
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    }, 1000);
+  // Interval: Autosave every 10s if modified
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (notesRef.current !== project?.notes) {
+        handleSave();
+      }
+    }, 10000); // 10 seconds
 
-    return () => clearTimeout(timer);
-  }, [notes, project, updateProjectNotes]);
+    return () => clearInterval(intervalId);
+  }, [handleSave, project?.notes]);
 
   // Handlers for Inline Edit
   const startEditTitle = () => {
@@ -212,6 +245,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         <div className="flex gap-3 flex-wrap">
           <Button id="tour-templates" variant="ghost" onClick={openTemplates} aria-label="Open templates library">Templates</Button>
           <Button 
+            variant="ghost" 
+            className="text-muted hover:text-white"
+            onClick={() => setIsHistoryOpen(true)}
+            title="View History"
+          >
+            <IconHistory className="w-4 h-4 mr-1" /> History
+          </Button>
+          <Button 
             className="bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/10"
             onClick={() => exportCaseToPDF(project)}
             aria-label="Export project as PDF"
@@ -236,15 +277,23 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         <div className="lg:col-span-2 flex flex-col gap-6">
           
           {/* Notes Editor */}
-          <div className="bg-surface border border-white/5 rounded-xl p-1 shadow-lg flex-1 flex flex-col">
+          <div className="bg-surface border border-white/5 rounded-xl p-1 shadow-lg flex-1 flex flex-col relative">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/[0.02]">
               <label htmlFor="notes" className="text-sm font-semibold text-muted uppercase tracking-wide">Project Notes & Documentation</label>
-              <div className={`text-xs transition-colors ${saveStatus === 'saved' ? 'text-success' : 'text-muted'}`} role="status">{saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved ✓' : 'Auto-save active'}</div>
+              <div className={`text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                saveStatus === 'saved' ? 'text-success' : saveStatus === 'saving' ? 'text-accent' : saveStatus === 'modified' ? 'text-yellow-500' : 'text-muted'
+              }`} role="status">
+                 <div className={`w-1.5 h-1.5 rounded-full ${
+                    saveStatus === 'saved' ? 'bg-success' : saveStatus === 'saving' ? 'bg-accent animate-pulse' : saveStatus === 'modified' ? 'bg-yellow-500' : 'bg-white/20'
+                 }`}></div>
+                 {saveStatus === 'saving' ? 'Autosaving...' : saveStatus === 'saved' ? 'All changes saved' : saveStatus === 'modified' ? 'Unsaved changes' : 'Up to date'}
+              </div>
             </div>
             <textarea
               id="notes"
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={handleNotesChange}
+              onBlur={handleSave} // Autosave on blur
               placeholder="Start typing your problem statement, research notes, or findings here..."
               className="w-full flex-1 bg-transparent p-6 resize-none focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset text-gray-300 leading-relaxed min-h-[400px]"
               aria-label="Project notes"
@@ -362,6 +411,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             }
           }
         ]}
+      />
+
+      {/* History Modal */}
+      <HistoryModal 
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        versions={project.history || []}
+        onRestore={restoreProjectVersion}
       />
     </main>
   );

@@ -9,6 +9,11 @@ export interface Asset {
   size?: number; // File size in bytes
 }
 
+export interface ProjectVersion {
+  timestamp: string;
+  notes: string;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -17,6 +22,7 @@ export interface Project {
   stages: Record<string, boolean>;
   expandedStages?: Record<string, boolean>; // Tracks which stage details are open
   assets: Asset[];
+  history?: ProjectVersion[]; // Last 3 versions of notes
   createdAt: string;
 }
 
