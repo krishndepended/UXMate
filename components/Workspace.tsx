@@ -20,6 +20,7 @@ interface WorkspaceProps {
   openTemplates: () => void;
   clearProjectData: () => void;
   onExport: (project: Project) => void;
+  className?: string;
 }
 
 export const Workspace: React.FC<WorkspaceProps> = ({
@@ -31,7 +32,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   onReplaceAsset,
   openTemplates,
   clearProjectData,
-  onExport
+  onExport,
+  className = ''
 }) => {
   const [notes, setNotes] = useState('');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'idle' | 'modified'>('idle');
@@ -80,15 +82,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   // Autosave Logic
   const handleSave = useCallback(() => {
     if (!project) return;
-    if (notesRef.current !== project.notes) {
-      setSaveStatus('saving');
-      // Small delay to show "Saving..." text
-      setTimeout(() => {
-        updateProjectNotes(notesRef.current);
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000);
-      }, 500);
-    }
+    // Force save even if notes match ref (for manual trigger visual feedback)
+    // But check content against project to avoid redundant history entries if strictly handled there
+    setSaveStatus('saving');
+    setTimeout(() => {
+      updateProjectNotes(notesRef.current);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }, 500);
   }, [project, updateProjectNotes]);
 
   // Interval: Autosave every 10s if modified
@@ -101,6 +102,18 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 
     return () => clearInterval(intervalId);
   }, [handleSave, project?.notes]);
+
+  // Keyboard Shortcut for Save (Ctrl/Cmd + S)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSave]);
 
   // Handlers for Inline Edit
   const startEditTitle = () => {
@@ -134,10 +147,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   // Asset Interaction Handlers
   const handleContextMenu = (e: React.MouseEvent, index: number) => {
     e.preventDefault();
+    // Adjust x/y if close to edge
+    let x = e.clientX;
+    let y = e.clientY;
+    // Fallback for mobile tap where clientX might need check
     setContextMenu({
       isOpen: true,
-      x: e.clientX,
-      y: e.clientY,
+      x,
+      y,
       assetIndex: index
     });
   };
@@ -157,7 +174,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 
   if (!project) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-surface border border-white/5 rounded-xl p-10 text-center shadow-lg min-h-[500px]" role="main">
+      <div className={`flex-1 flex flex-col items-center justify-center bg-surface border border-white/5 rounded-xl p-10 text-center shadow-lg min-h-[500px] ${className}`} role="main">
         <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 text-muted">
           <IconFile className="w-8 h-8" aria-hidden="true" />
         </div>
@@ -171,10 +188,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const progress = Math.round((completedStages / STAGES.length) * 100);
 
   return (
-    <main className="flex-1 flex flex-col gap-6 min-w-0" role="main">
+    <main className={`flex-1 flex flex-col gap-6 min-w-0 pb-24 md:pb-0 ${className}`} role="main">
       {/* Header Card */}
-      <div className="bg-surface border border-white/5 rounded-xl p-6 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex-1 min-w-0 flex items-center gap-4">
+      <div className="bg-surface border border-white/5 rounded-xl p-4 md:p-6 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex-1 min-w-0 flex items-center gap-4 w-full">
           {/* Progress Ring */}
           <div aria-label={`Project progress: ${progress}%`}>
              <ProgressRing progress={progress} radius={24} stroke={4} className="flex-shrink-0" />
@@ -186,7 +203,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 <input 
                   autoFocus
                   type="text"
-                  className="text-2xl font-bold text-white bg-black/20 border border-accent rounded px-2 py-0.5 w-full outline-none"
+                  className="text-xl md:text-2xl font-bold text-white bg-black/20 border border-accent rounded px-2 py-0.5 w-full outline-none min-h-[44px]"
                   value={editTitleVal}
                   onChange={e => setEditTitleVal(e.target.value)}
                   onBlur={saveTitle}
@@ -195,7 +212,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 />
               ) : (
                 <h1 
-                  className="text-2xl font-bold text-white truncate cursor-pointer hover:text-accent transition-colors border border-transparent hover:border-white/5 rounded px-1 -ml-1"
+                  className="text-xl md:text-2xl font-bold text-white truncate cursor-pointer hover:text-accent transition-colors border border-transparent hover:border-white/5 rounded px-1 -ml-1"
                   onDoubleClick={startEditTitle}
                   title="Double click to edit title"
                   tabIndex={0}
@@ -205,8 +222,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 </h1>
               )}
               {!isEditingTitle && (
-                 <button onClick={startEditTitle} className="opacity-0 group-hover:opacity-100 text-muted hover:text-accent transition-opacity focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded p-1" aria-label="Edit title">
-                   <IconEdit className="w-4 h-4" aria-hidden="true" />
+                 <button onClick={startEditTitle} className="md:opacity-0 md:group-hover:opacity-100 text-muted hover:text-accent transition-opacity focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded p-2 md:p-1" aria-label="Edit title">
+                   <IconEdit className="w-5 h-5 md:w-4 md:h-4" aria-hidden="true" />
                  </button>
               )}
             </div>
@@ -216,7 +233,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                  <input 
                   autoFocus
                   type="text"
-                  className="text-sm text-muted bg-black/20 border border-accent rounded px-2 py-0.5 w-full max-w-md outline-none"
+                  className="text-sm text-muted bg-black/20 border border-accent rounded px-2 py-0.5 w-full max-w-md outline-none min-h-[44px]"
                   value={editDescVal}
                   onChange={e => setEditDescVal(e.target.value)}
                   onBlur={saveDesc}
@@ -235,19 +252,19 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                  </p>
                )}
                {!isEditingDesc && (
-                 <button onClick={startEditDesc} className="opacity-0 group-hover:opacity-100 text-muted hover:text-accent transition-opacity focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded p-1" aria-label="Edit description">
-                   <IconEdit className="w-3.5 h-3.5" aria-hidden="true" />
+                 <button onClick={startEditDesc} className="md:opacity-0 md:group-hover:opacity-100 text-muted hover:text-accent transition-opacity focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded p-2 md:p-1" aria-label="Edit description">
+                   <IconEdit className="w-4 h-4 md:w-3.5 md:h-3.5" aria-hidden="true" />
                  </button>
                )}
             </div>
           </div>
         </div>
         
-        <div className="flex gap-3 flex-wrap">
-          <Button id="tour-templates" variant="ghost" onClick={openTemplates} aria-label="Open templates library">Templates</Button>
+        <div className="flex gap-3 flex-wrap w-full md:w-auto justify-end">
+          <Button id="tour-templates" variant="ghost" onClick={openTemplates} aria-label="Open templates library" className="flex-1 md:flex-none">Templates</Button>
           <Button 
             variant="ghost" 
-            className="text-muted hover:text-white"
+            className="text-muted hover:text-white flex-1 md:flex-none"
             onClick={() => setIsHistoryOpen(true)}
             title="View History"
           >
@@ -255,7 +272,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           </Button>
           <Button 
             id="tour-export"
-            className="bg-gradient-to-r from-accent to-blue-600 hover:from-blue-400 hover:to-blue-500 text-surface font-bold shadow-lg shadow-blue-900/20 border-0"
+            className="bg-gradient-to-r from-accent to-blue-600 hover:from-blue-400 hover:to-blue-500 text-surface font-bold shadow-lg shadow-blue-900/20 border-0 flex-1 md:flex-none"
             onClick={() => onExport(project)}
             aria-label="Open export options"
           >
@@ -271,16 +288,16 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         <div className="lg:col-span-2 flex flex-col gap-6">
           
           {/* Notes Editor */}
-          <div className="bg-surface border border-white/5 rounded-xl p-1 shadow-lg flex-1 flex flex-col relative">
+          <div className="bg-surface border border-white/5 rounded-xl p-1 shadow-lg flex-1 flex flex-col relative min-h-[50vh]">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/[0.02]">
-              <label htmlFor="notes" className="text-sm font-semibold text-muted uppercase tracking-wide">Project Notes & Documentation</label>
+              <label htmlFor="notes" className="text-sm font-semibold text-muted uppercase tracking-wide">Project Notes</label>
               <div className={`text-xs font-medium transition-colors flex items-center gap-1.5 ${
                 saveStatus === 'saved' ? 'text-success' : saveStatus === 'saving' ? 'text-accent' : saveStatus === 'modified' ? 'text-yellow-500' : 'text-muted'
               }`} role="status">
                  <div className={`w-1.5 h-1.5 rounded-full ${
                     saveStatus === 'saved' ? 'bg-success' : saveStatus === 'saving' ? 'bg-accent animate-pulse' : saveStatus === 'modified' ? 'bg-yellow-500' : 'bg-white/20'
                  }`}></div>
-                 {saveStatus === 'saving' ? 'Autosaving...' : saveStatus === 'saved' ? 'All changes saved' : saveStatus === 'modified' ? 'Unsaved changes' : 'Up to date'}
+                 {saveStatus === 'saving' ? 'Autosaving...' : saveStatus === 'saved' ? 'Saved' : saveStatus === 'modified' ? 'Unsaved' : 'Saved'}
               </div>
             </div>
             <textarea
@@ -289,7 +306,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               onChange={handleNotesChange}
               onBlur={handleSave} // Autosave on blur
               placeholder="Start typing your problem statement, research notes, or findings here..."
-              className="w-full flex-1 bg-transparent p-6 resize-none focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset text-gray-300 leading-relaxed min-h-[400px]"
+              className="w-full flex-1 bg-transparent p-6 resize-none focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset text-gray-300 leading-relaxed min-h-[300px] text-base"
               aria-label="Project notes"
             />
             <div className="px-4 py-3 border-t border-white/5 flex justify-between items-center bg-white/[0.02]">
@@ -298,8 +315,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
           </div>
         </div>
 
-        {/* Right: Progress & Assets */}
-        <div className="flex flex-col gap-6 min-w-0">
+        {/* Right: Progress & Assets (Desktop only mostly, as mobile has sidebar tabs) */}
+        <div className="hidden lg:flex flex-col gap-6 min-w-0">
           
           {/* Progress Card */}
           <div className="bg-surface border border-white/5 rounded-xl p-5 shadow-lg">
@@ -316,7 +333,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
              <div className="mt-2 text-xs text-muted text-right">{completedStages} of {STAGES.length} stages completed</div>
           </div>
 
-          {/* Assets List */}
+          {/* Assets List - Desktop */}
           <div className="bg-surface border border-white/5 rounded-xl p-5 shadow-lg flex-1 flex flex-col min-h-[300px]">
             <h3 className="font-bold text-white mb-4">Project Assets</h3>
             
@@ -325,11 +342,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 No assets uploaded yet.
               </div>
             ) : (
-              // Responsive Grid: Carousel (flex) on mobile, Grid on desktop
               <div className="flex-1 relative min-w-0">
-                <div className="absolute inset-0 overflow-y-auto overflow-x-hidden">
-                   {/* Mobile: Swipeable Row, Desktop: Grid */}
-                   <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-4 lg:grid lg:grid-cols-2 xl:grid-cols-2 lg:overflow-visible lg:pb-0 scrollbar-hide" role="list" aria-label="Uploaded assets">
+                <div className="absolute inset-0 overflow-y-auto overflow-x-hidden" style={{ contentVisibility: 'auto' }}>
+                   <div className="grid grid-cols-2 gap-3" role="list" aria-label="Uploaded assets">
                      {[...project.assets].reverse().map((asset, index) => {
                        const originalIndex = project.assets.length - 1 - index;
                        return (
@@ -359,7 +374,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         type="file"
         ref={replaceInputRef}
         className="hidden"
-        accept="image/*,.pdf"
+        accept="image/*" // Updated to simpler image accept
         onChange={onReplaceFileChange}
         aria-hidden="true"
         tabIndex={-1}

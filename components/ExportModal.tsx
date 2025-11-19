@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Project } from '../types';
-import { generateFullHtml, downloadCaseStudy, exportCaseToPDF } from '../utils/exporter';
+import { generateFullHtml, downloadCaseStudy, exportToPrintable } from '../utils/exporter';
 import { Button } from './ui/Button';
 import { IconClose, IconDownload, IconFile, IconCheck } from './ui/Icons';
 
@@ -34,7 +34,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ project, isOpen, onClo
       if (format === 'html') {
         setEstimatedSize(`~${kb} KB (HTML File)`);
       } else {
-        // Rough estimate for PDF: HTML size * factor + base overhead
+        // Rough estimate for PDF/Print: HTML size * factor + base overhead
         const pdfEst = Math.round(kb * 1.5 + 500); 
         setEstimatedSize(`~${pdfEst} KB (PDF Document)`);
       }
@@ -46,8 +46,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ project, isOpen, onClo
   const handleExport = async () => {
     setIsExporting(true);
     setProgress(0);
-    setStatusText('Starting export...');
-
+    
     try {
       if (format === 'html') {
         setStatusText('Preparing HTML...');
@@ -56,20 +55,36 @@ export const ExportModal: React.FC<ExportModalProps> = ({ project, isOpen, onClo
         downloadCaseStudy(project, includeAssets);
         setProgress(100);
         setStatusText('Download started!');
+        setTimeout(() => {
+           setIsExporting(false);
+           onClose();
+        }, 1000);
       } else {
-        await exportCaseToPDF(project, includeAssets, (status, pct) => {
-          setStatusText(status);
-          setProgress(pct);
-        });
+        // Print / PDF Export
+        setStatusText('Inlining images & preparing document...');
+        setProgress(30);
+        
+        // This process is usually fast, but we give UI feedback
+        await new Promise(r => setTimeout(r, 300));
+        
+        const result = await exportToPrintable(project, includeAssets);
+        
+        setProgress(100);
+        if (result.method === 'print') {
+          setStatusText('Print dialog opened!');
+        } else {
+          setStatusText('Popup blocked: HTML downloaded.');
+          alert("Your browser blocked the Print window. We've downloaded the file instead. Open it and choose 'Print -> Save as PDF'.");
+        }
+
+        setTimeout(() => {
+           setIsExporting(false);
+           onClose();
+        }, 1500);
       }
-      
-      setTimeout(() => {
-        setIsExporting(false);
-        onClose();
-      }, 1000);
     } catch (e) {
       console.error(e);
-      setStatusText('Export failed. Check console.');
+      setStatusText('Export failed.');
       setIsExporting(false);
     }
   };
@@ -124,8 +139,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({ project, isOpen, onClo
                     onChange={() => setFormat('pdf')}
                   />
                   <div className="flex-1">
-                    <div className="font-semibold">PDF Document</div>
-                    <div className="text-[10px] opacity-70">Printable, A4 Layout</div>
+                    <div className="font-semibold">Print / PDF</div>
+                    <div className="text-[10px] opacity-70">Opens System Print Dialog</div>
                   </div>
                   {format === 'pdf' && <IconCheck className="w-4 h-4 text-accent" />}
                 </label>
@@ -194,7 +209,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ project, isOpen, onClo
           <div className="flex gap-3">
              <Button variant="ghost" onClick={onClose} disabled={isExporting}>Cancel</Button>
              <Button onClick={handleExport} disabled={isExporting} className="min-w-[140px]">
-               {isExporting ? 'Exporting...' : `Export ${format.toUpperCase()}`}
+               {isExporting ? 'Working...' : `Export ${format === 'html' ? 'HTML' : 'PDF'}`}
              </Button>
           </div>
         </div>

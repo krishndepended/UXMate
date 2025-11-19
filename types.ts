@@ -36,7 +36,7 @@ export interface Template {
   label: string;
   desc?: string;
   content: string;
-  category?: 'Research' | 'Design' | 'Testing' | 'Strategy';
+  category?: 'Research' | 'Design' | 'Testing' | 'Strategy' | 'Delivery';
   tags?: string[];
 }
 

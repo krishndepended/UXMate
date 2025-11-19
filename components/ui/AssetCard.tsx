@@ -43,8 +43,9 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onClick, onContextM
         {asset.type.startsWith('image') && displayUrl ? (
           <img 
             src={displayUrl} 
-            alt="" // Decorative, parent label covers it
+            alt="" // Decorative
             loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (

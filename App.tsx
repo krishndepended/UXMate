@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Project, AppState, Asset, ProjectVersion } from './types';
 import { STAGES } from './constants';
 import { Sidebar } from './components/Sidebar';
@@ -10,12 +10,21 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { ExportModal } from './components/ExportModal';
 import { Toast, ToastProps } from './components/ui/Toast';
 import { Tour } from './components/Tour';
+import { Button } from './components/ui/Button';
+import { IconMenu, IconLayout, IconCheckCircle, IconFile, IconPlus, IconEdit, IconBug, IconTerminal, IconTrash, IconClose } from './components/ui/Icons';
 
 function uid() {
   return 'p_' + Math.random().toString(36).slice(2, 9);
 }
 
 const STORAGE_KEY = 'uxmate_projects_v1';
+// Warning threshold for LocalStorage usage (~4.5MB is safe limit, browsers usually 5MB)
+const STORAGE_WARNING_THRESHOLD = 4.5 * 1024 * 1024; 
+// Warning threshold for total asset size (as requested, though mostly relevant if using custom storage)
+const ASSET_SIZE_WARNING_THRESHOLD = 30 * 1024 * 1024; 
+
+// Mobile Tabs
+type MobileTab = 'projects' | 'editor' | 'checklist' | 'assets';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>(() => {
@@ -33,6 +42,12 @@ const App: React.FC = () => {
   const [exportProject, setExportProject] = useState<Project | null>(null);
   const [fbReady, setFbReady] = useState(false);
   
+  // Mobile Navigation State
+  const [mobileTab, setMobileTab] = useState<MobileTab>('projects');
+
+  // Hidden file input for global FAB upload
+  const hiddenFileInputRef = useRef<HTMLInputElement>(null);
+  
   // Toast State
   const [toast, setToast] = useState<Omit<ToastProps, 'onClose'> | null>(null);
   
@@ -44,12 +59,50 @@ const App: React.FC = () => {
     onConfirm: () => void;
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
-  // Persist to localStorage & Firestore (Gated)
-  useEffect(() => {
-    // 1. Always save to LocalStorage
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  // Dev Mode State
+  const [devClickCount, setDevClickCount] = useState(0);
+  const [isDevMode, setIsDevMode] = useState(false);
+  const [isDebugOpen, setIsDebugOpen] = useState(false);
 
-    // 2. Cloud save (Only if FB is fully initialized and authenticated)
+  // Persist to localStorage & Check Performance Limits
+  useEffect(() => {
+    try {
+      const json = JSON.stringify(state);
+      localStorage.setItem(STORAGE_KEY, json);
+
+      // Check 1: LocalStorage Quota (Critical)
+      const totalSize = new Blob([json]).size;
+      if (totalSize > STORAGE_WARNING_THRESHOLD) {
+         if (!toast || toast.type !== 'error') {
+           setToast({ 
+             message: 'Storage Full! Export projects or delete assets immediately to avoid data loss.', 
+             type: 'error' 
+           });
+         }
+      } else {
+        // Check 2: Total Asset Size (Performance/Warning)
+        // Only count local assets (dataURL) towards local limits, but track total for "heavy" warning
+        const totalAssetSize = (Object.values(state.projects) as Project[]).reduce((acc, p) => {
+          return acc + p.assets.reduce((sum, a) => sum + (a.size || 0), 0);
+        }, 0);
+
+        if (totalAssetSize > ASSET_SIZE_WARNING_THRESHOLD) {
+          // Debounce this warning slightly so it doesn't spam
+          if (!toast) {
+            setToast({
+              message: 'Total assets exceed 30MB. App may slow down. Consider exporting old projects.',
+              type: 'info'
+            });
+          }
+        }
+      }
+
+    } catch (e) {
+      console.error('Failed to save state', e);
+      setToast({ message: 'Storage Quota Exceeded! Delete items now.', type: 'error' });
+    }
+
+    // Cloud Sync Logic
     if (window.FB && window.FB._initialized && window.FB.auth && window.FB.auth.currentUser) {
       try {
         const uid = window.FB.auth.currentUser.uid;
@@ -80,6 +133,29 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + N: New Project
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        setIsCreateModalOpen(true);
+      }
+      // Ctrl/Cmd + E: Export Current
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        if (state.activeProjectId && state.projects[state.activeProjectId]) {
+          setExportProject(state.projects[state.activeProjectId]);
+        } else {
+          setToast({ message: 'Select a project to export', type: 'info' });
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state.activeProjectId, state.projects]);
+
   // Initial Data Setup
   useEffect(() => {
     if (Object.keys(state.projects).length === 0) {
@@ -100,26 +176,17 @@ const App: React.FC = () => {
 
   const activeProject = state.activeProjectId ? state.projects[state.activeProjectId] : null;
 
-  // --- Helper for debug ---
-  const dumpLocalState = () => {
-    console.group('UXMate Debug: Local State');
-    console.log('Raw JSON:', localStorage.getItem(STORAGE_KEY));
-    console.log('Parsed State:', state);
-    console.groupEnd();
-    setToast({ message: 'State dumped to console', type: 'info' });
-  };
-
-  // --- Helper for confirmations ---
-  const requestConfirm = (title: string, message: string, onConfirm: () => void) => {
-    setConfirmConfig({ isOpen: true, title, message, onConfirm });
-  };
-
-  const closeConfirm = () => {
-    setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-  };
+  // Auto-switch mobile tab to Editor when project changes
+  useEffect(() => {
+    if (state.activeProjectId) {
+      // Only switch if we are currently in 'projects' view on mobile, otherwise stay where user is
+      if (mobileTab === 'projects') {
+        setMobileTab('editor');
+      }
+    }
+  }, [state.activeProjectId]);
 
   // --- Actions ---
-
   const handleCreateProject = (title: string, desc: string) => {
     const id = uid();
     const newProj: Project = {
@@ -137,14 +204,13 @@ const App: React.FC = () => {
       activeProjectId: id
     }));
     setToast({ message: 'Project created', type: 'success' });
+    setMobileTab('editor'); // Switch to editor
   };
 
   const deleteProject = (id: string) => {
-    // Find project to delete for restore capability
     const projectToDelete = state.projects[id];
     if (!projectToDelete) return;
 
-    // Optimistically delete with Undo
     setState(prev => {
       const nextProjects = { ...prev.projects };
       delete nextProjects[id];
@@ -161,7 +227,7 @@ const App: React.FC = () => {
       onUndo: () => {
         setState(prev => ({
           projects: { ...prev.projects, [id]: projectToDelete },
-          activeProjectId: id // Switch back to restored project
+          activeProjectId: id 
         }));
         setToast({ message: 'Project restored', type: 'success' });
       }
@@ -261,14 +327,11 @@ const App: React.FC = () => {
       if (!prev.activeProjectId) return prev;
       const p = prev.projects[prev.activeProjectId];
       
-      // Versioning Logic:
-      // Save the *current* (old) state to history before updating to new notes.
       const currentVersion: ProjectVersion = {
         timestamp: new Date().toISOString(),
         notes: p.notes
       };
       
-      // Add to history, keep max 3
       const newHistory = [currentVersion, ...(p.history || [])].slice(0, 3);
 
       return {
@@ -286,8 +349,6 @@ const App: React.FC = () => {
       if (!prev.activeProjectId) return prev;
       const p = prev.projects[prev.activeProjectId];
       
-      // When restoring, we also save the state *before* restore to history, 
-      // so you can "undo" the restore if needed.
       const currentVersion: ProjectVersion = {
         timestamp: new Date().toISOString(),
         notes: p.notes
@@ -305,9 +366,7 @@ const App: React.FC = () => {
     setToast({ message: 'Version restored', type: 'success' });
   }, []);
 
-  // Helper to handle cloud vs local file logic
   const processFile = async (file: File): Promise<Partial<Asset>> => {
-    // 1. Check Cloud
     const cloudAvailable = window.FB && window.FB._initialized && window.FB.auth && window.FB.auth.currentUser;
 
     if (cloudAvailable && window.uploadFileToFirebase) {
@@ -320,7 +379,6 @@ const App: React.FC = () => {
       }
     }
 
-    // 2. Local
     if (file.size > 2.5 * 1024 * 1024) {
       alert('File is too large (>2.5MB) for Local Mode.\n\nEnable Cloud Sync in index.html for unlimited uploads.');
       throw new Error('File too large');
@@ -344,28 +402,25 @@ const App: React.FC = () => {
 
   const handleAssetUpload = async (file: File) => {
     if (!state.activeProjectId) return;
-
     try {
       const assetData = await processFile(file);
       addAsset(assetData as Asset);
       setToast({ message: 'Asset uploaded', type: 'success' });
-    } catch (e) {
-      // Error handled in processFile mostly (alert)
-    }
+    } catch (e) { }
+  };
+
+  const handleGlobalUploadTrigger = () => {
+    hiddenFileInputRef.current?.click();
   };
 
   const handleReplaceAsset = async (index: number, file: File) => {
      if (!state.activeProjectId) return;
-     
      try {
        const assetData = await processFile(file);
        setState(prev => {
          if (!prev.activeProjectId) return prev;
          const p = prev.projects[prev.activeProjectId];
          const newAssets = [...p.assets];
-         // Replace at index, preserving name if desired? Let's overwrite everything for simplicity of "replace"
-         // or we could keep the old name if that was the intent. Usually "replace" means update content.
-         // Let's update content but keep createdAt if we want "history", but typically replace updates everything.
          newAssets[index] = assetData as Asset;
          
          return {
@@ -377,9 +432,7 @@ const App: React.FC = () => {
          };
        });
        setToast({ message: 'Asset replaced', type: 'success' });
-     } catch (e) {
-       // Error handled
-     }
+     } catch (e) { }
   };
 
   const addAsset = (asset: Asset) => {
@@ -447,29 +500,72 @@ const App: React.FC = () => {
     setExportProject(project);
   };
 
+  const requestConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmConfig({ isOpen: true, title, message, onConfirm });
+  };
+  const closeConfirm = () => setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+
+  // Dev Mode Handler
+  const handleLogoClick = () => {
+    if (isDevMode) return;
+    const newCount = devClickCount + 1;
+    setDevClickCount(newCount);
+    if (newCount === 5) {
+      setIsDevMode(true);
+      setToast({ message: 'Developer Mode Enabled 👩‍💻', type: 'success' });
+    }
+  };
+
+  const handleWipeAllData = () => {
+    if (confirm('CRITICAL WARNING: This will wipe ALL local projects and data. Are you sure?')) {
+      localStorage.clear();
+      window.location.reload();
+    }
+  };
+
+  // --- Render ---
+
   return (
     <div className="min-h-screen bg-background text-gray-100 flex flex-col font-sans selection:bg-accent selection:text-surface">
-      <header className="h-16 border-b border-white/5 bg-surface/50 backdrop-blur flex items-center px-6 sticky top-0 z-40">
-        <div className="w-8 h-8 rounded bg-gradient-to-br from-accent to-blue-400 flex items-center justify-center font-bold text-surface mr-3 shadow-[0_0_15px_rgba(96,165,250,0.3)]">
+      <header className="h-16 border-b border-white/5 bg-surface/50 backdrop-blur flex items-center px-6 sticky top-0 z-40 shrink-0">
+        <div 
+          className="w-8 h-8 rounded bg-gradient-to-br from-accent to-blue-400 flex items-center justify-center font-bold text-surface mr-3 shadow-[0_0_15px_rgba(96,165,250,0.3)] select-none cursor-pointer active:scale-95 transition-transform"
+          onClick={handleLogoClick}
+        >
           UX
         </div>
         <h1 className="font-bold text-lg tracking-tight">UXMate</h1>
-        <div className="ml-auto text-xs hidden sm:block cursor-pointer" onClick={dumpLocalState} title="Click to debug local state">
-          {fbReady ? (
-             <span className="text-success flex items-center gap-1.5">
-               <span className="w-2 h-2 rounded-full bg-success"></span>
-               Cloud Active
-             </span>
-          ) : (
-             <span className="text-muted flex items-center gap-1.5 hover:text-white transition-colors">
-               <span className="w-2 h-2 rounded-full bg-slate-500"></span>
-               Local Mode — Cloud sync disabled
-             </span>
+        <div className="ml-auto text-xs flex items-center gap-3">
+          {/* Dev Mode Toggle */}
+          {isDevMode && (
+            <button 
+              onClick={() => setIsDebugOpen(true)}
+              className="flex items-center gap-1 px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-colors"
+              title="Open Debug Panel"
+            >
+              <IconBug className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Debug</span>
+            </button>
           )}
+          
+          <div className="hidden sm:block">
+            {fbReady ? (
+              <span className="text-success flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-success"></span>
+                Cloud Active
+              </span>
+            ) : (
+              <span className="text-muted flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+                Local
+              </span>
+            )}
+          </div>
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-[1600px] mx-auto w-full p-4 md:p-6 gap-6">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-[1600px] mx-auto w-full md:p-6 md:gap-6 relative">
+        
+        {/* Sidebar: Visible on Desktop OR specific section on Mobile */}
         <Sidebar 
           state={state}
           activeProject={activeProject}
@@ -483,7 +579,11 @@ const App: React.FC = () => {
           resetStages={resetStages}
           onUploadAsset={handleAssetUpload}
           onExport={handleOpenExport}
+          className={`${mobileTab !== 'editor' ? 'flex' : 'hidden'} md:flex p-4 md:p-0 h-full md:h-auto overflow-y-auto md:overflow-visible`}
+          mobileSection={mobileTab}
         />
+
+        {/* Workspace: Visible on Desktop OR 'editor' on Mobile */}
         <Workspace 
           project={activeProject}
           updateProject={updateProject}
@@ -494,8 +594,74 @@ const App: React.FC = () => {
           openTemplates={() => setIsTemplatesOpen(true)}
           clearProjectData={clearProjectData}
           onExport={handleOpenExport}
+          className={`${mobileTab === 'editor' ? 'flex' : 'hidden'} md:flex p-4 md:p-0 h-full md:h-auto overflow-y-auto md:overflow-visible`}
         />
+        
+        {/* Mobile Bottom Navigation */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-white/10 h-16 flex items-center justify-around z-50 pb-safe">
+           <button onClick={() => setMobileTab('projects')} className={`flex flex-col items-center gap-1 p-2 flex-1 ${mobileTab === 'projects' ? 'text-accent' : 'text-muted'}`}>
+             <IconMenu className="w-6 h-6" />
+             <span className="text-[10px] font-medium">Projects</span>
+           </button>
+           <button onClick={() => setMobileTab('editor')} className={`flex flex-col items-center gap-1 p-2 flex-1 ${mobileTab === 'editor' ? 'text-accent' : 'text-muted'}`}>
+             <IconEdit className="w-6 h-6" />
+             <span className="text-[10px] font-medium">Editor</span>
+           </button>
+           <button onClick={() => setMobileTab('checklist')} className={`flex flex-col items-center gap-1 p-2 flex-1 ${mobileTab === 'checklist' ? 'text-accent' : 'text-muted'}`}>
+             <IconCheckCircle className="w-6 h-6" />
+             <span className="text-[10px] font-medium">Checklist</span>
+           </button>
+           <button onClick={() => setMobileTab('assets')} className={`flex flex-col items-center gap-1 p-2 flex-1 ${mobileTab === 'assets' ? 'text-accent' : 'text-muted'}`}>
+             <IconFile className="w-6 h-6" />
+             <span className="text-[10px] font-medium">Assets</span>
+           </button>
+        </div>
+
+        {/* Mobile Floating Action Button (FAB) */}
+        <div className="md:hidden fixed bottom-20 right-4 z-50">
+          {mobileTab === 'projects' && (
+            <button 
+              onClick={() => setIsCreateModalOpen(true)} 
+              className="w-14 h-14 rounded-full bg-accent text-surface shadow-lg shadow-blue-500/30 flex items-center justify-center transition-transform active:scale-95"
+              aria-label="New Project"
+            >
+              <IconPlus className="w-7 h-7" />
+            </button>
+          )}
+          {mobileTab === 'assets' && activeProject && (
+            <button 
+              onClick={handleGlobalUploadTrigger} 
+              className="w-14 h-14 rounded-full bg-accent text-surface shadow-lg shadow-blue-500/30 flex items-center justify-center transition-transform active:scale-95"
+              aria-label="Upload Asset"
+            >
+              <IconPlus className="w-7 h-7" />
+            </button>
+          )}
+          {mobileTab === 'editor' && activeProject && (
+            <button 
+              onClick={() => setIsTemplatesOpen(true)} 
+              className="w-14 h-14 rounded-full bg-surface border border-accent text-accent shadow-lg flex items-center justify-center transition-transform active:scale-95"
+              aria-label="Insert Template"
+            >
+              <IconLayout className="w-6 h-6" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Global Hidden Input for FAB Asset Upload */}
+      <input 
+        type="file" 
+        ref={hiddenFileInputRef} 
+        className="hidden" 
+        accept="image/*"
+        onChange={(e) => {
+          if(e.target.files?.[0]) {
+            handleAssetUpload(e.target.files[0]);
+            e.target.value = '';
+          }
+        }}
+      />
 
       {/* Global Guided Tour */}
       <Tour />
@@ -533,6 +699,35 @@ const App: React.FC = () => {
           onUndo={toast.onUndo}
           onClose={() => setToast(null)} 
         />
+      )}
+
+      {/* DEBUG PANEL (Dev Mode) */}
+      {isDebugOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+           <div className="bg-surface border border-white/10 rounded-xl w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl">
+              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                <h2 className="font-bold text-white flex items-center gap-2">
+                  <IconTerminal className="w-5 h-5 text-accent" /> Developer Tools
+                </h2>
+                <button onClick={() => setIsDebugOpen(false)} className="text-muted hover:text-white">
+                  <IconClose className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden bg-[#1e1e1e] p-4 font-mono text-xs text-green-400">
+                <div className="h-full overflow-auto">
+                  <pre>{JSON.stringify(state, null, 2)}</pre>
+                </div>
+              </div>
+              <div className="p-4 border-t border-white/10 flex justify-between items-center">
+                <span className="text-xs text-muted">
+                  Raw State Dump ({new Blob([JSON.stringify(state)]).size} bytes)
+                </span>
+                <Button variant="danger" onClick={handleWipeAllData}>
+                  <IconTrash className="w-4 h-4 mr-2" /> Reset All Data
+                </Button>
+              </div>
+           </div>
+        </div>
       )}
     </div>
   );
