@@ -1,0 +1,21 @@
+{
+  "short_name": "UXMate",
+  "name": "UXMate Project Coach",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192/60a5fa/ffffff?text=UX",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://via.placeholder.com/512/60a5fa/ffffff?text=UX",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+HOW TO CREATE THE ZIP PACKAGE (uxmate-local-pwa.zip)
+====================================================
+
+If you are using Google AI Studio:
+
+1.  Look for the **"Export to Code"** or **"Download"** icon in the top right of the preview or code pane.
+2.  If that is not available, you can manually download the following files and place them in a folder named `uxmate-local-pwa`:
+
+    [Root Files]
+    - index.html
+    - index.tsx
+    - App.tsx
+    - types.ts
+    - constants.ts
+    - manifest.json
+    - sw.js
+    - README.md
+    - metadata.json
+
+    [Folder: components]
+    - Sidebar.tsx
+    - Workspace.tsx
+    - TemplatesModal.tsx
+    - CreateProjectModal.tsx
+    - ConfirmModal.tsx
+    - AICoach.tsx (can be empty)
+    
+    [Folder: components/ui]
+    - Button.tsx
+    - Icons.tsx
+
+    [Folder: utils]
+    - exporter.ts
+
+3.  Once downloaded, select all files/folders -> Right Click -> **Compress** (or Send to > Compressed (zipped) folder).
+4.  Name the file `uxmate-local-pwa.zip`.
+
+You can now share this ZIP. The user just needs to unzip it and run `python -m http.server` to use the app.

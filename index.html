@@ -1,0 +1,166 @@
+<!-- REMOVED_AI: removed AI integration - local only -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UXMate — Project Coach</title>
+  <meta name="description" content="A comprehensive UX project management tool.">
+  <meta name="theme-color" content="#0f172a">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="./manifest.json">
+
+  <!-- Styles & Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            background: '#0f172a',
+            surface: '#1e293b',
+            accent: '#60a5fa',
+            muted: '#94a3b8',
+            glass: 'rgba(255,255,255,0.05)',
+            success: '#34d399',
+            danger: '#f87171',
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { background-color: #0f172a; color: #e6eef8; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    .loader { border: 2px solid #f3f3f3; border-top: 2px solid #60a5fa; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+
+  <!-- External Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Babel Standalone: Enables running TSX/JSX locally without a build step -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Firebase Global Init (Module based) - GATED FOR LOCAL MODE -->
+  <script type="module">
+    /*
+      GLOBAL FIREBASE INITIALIZER
+      - Gated: Only initializes if valid config is provided.
+      - Exposes window.FB and window.uploadFileToFirebase(file).
+    */
+    
+    // ====== [OPTIONAL] PASTE YOUR FIREBASE CONFIG BELOW TO ENABLE CLOUD SYNC ======
+    // If you leave these as "REPLACE_...", the app runs in Offline/Local Mode.
+    const FIREBASE_CONFIG_PLACEHOLDER = {
+      apiKey: "REPLACE_API_KEY",
+      authDomain: "REPLACE_PROJECT.firebaseapp.com",
+      projectId: "REPLACE_PROJECT_ID",
+      storageBucket: "REPLACE_PROJECT.appspot.com",
+      messagingSenderId: "REPLACE_SENDER_ID",
+      appId: "REPLACE_APP_ID"
+    };
+    // ==============================================================================
+
+    window.initFirebaseIfNeeded = async function(config) {
+      // 1. Check for placeholders or missing config -> Enforce Local Mode
+      if(!config || !config.apiKey || config.apiKey.startsWith("REPLACE_")) {
+        console.log('UXMate: Running in Local Mode (Cloud Sync Disabled). To enable, update FIREBASE_CONFIG_PLACEHOLDER in index.html');
+        return null;
+      }
+
+      if(window.FB && window.FB._initialized) return window.FB;
+
+      try {
+        console.log('UXMate: Attempting Firebase Connection...');
+        const [{ initializeApp, getApps }, 
+               { getAuth, signInAnonymously, onAuthStateChanged }, 
+               { getFirestore, doc, setDoc, getDoc, onSnapshot },
+               { getStorage, ref, uploadBytes, getDownloadURL }] = await Promise.all([
+          import('https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js').then(m=>[m.initializeApp, m.getApps]),
+          import('https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js'),
+          import('https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js'),
+          import('https://www.gstatic.com/firebasejs/10.6.0/firebase-storage.js')
+        ]);
+
+        const app = (getApps && getApps().length) ? getApps()[0] : initializeApp(config);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        // Anonymous Auth
+        signInAnonymously(auth).catch(e => console.warn('Firebase Auth failed (Offline Mode):', e));
+
+        window.FB = {
+          _initialized: true,
+          app, auth, db, storage,
+          doc, setDoc, getDoc, onSnapshot,
+          ref, uploadBytes, getDownloadURL,
+          onAuthStateChanged
+        };
+
+        // File Upload Helper (Cloud)
+        window.uploadFileToFirebase = async function(file) {
+          if(!window.FB || !window.FB.storage) throw new Error('Firebase not ready');
+          const user = window.FB.auth.currentUser || { uid: 'anonymous' };
+          const path = `users/${user.uid}/assets/${Date.now()}_${file.name.replace(/\s+/g,'_')}`;
+          const storageRef = window.FB.ref(window.FB.storage, path);
+          await window.FB.uploadBytes(storageRef, file);
+          return await window.FB.getDownloadURL(storageRef);
+        };
+
+        // Sync Logic
+        window.FB.onAuthStateChanged(auth, async (user) => {
+          if(user) {
+             console.debug('UXMate: Cloud Sync Active for:', user.uid);
+          }
+        });
+
+        console.log('UXMate: Firebase Initialized Successfully');
+        return window.FB;
+      } catch(e) {
+        console.warn('UXMate: Firebase init failed. Falling back to Local Mode.', e);
+        return null;
+      }
+    };
+
+    // Attempt Init
+    window.initFirebaseIfNeeded(FIREBASE_CONFIG_PLACEHOLDER);
+  </script>
+
+  <!-- React Module Loader -->
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+  }
+}
+</script>
+  
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('SW registered:', reg))
+          .catch(err => console.log('SW registration failed:', err));
+      });
+    }
+  </script>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="root"></div>
+  <!-- Use Babel to compile TSX on the fly for local usage -->
+  <script type="text/babel" data-type="module" src="index.tsx"></script>
+</body>
+</html>
