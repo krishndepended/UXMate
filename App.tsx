@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Project, AppState, Asset } from './types';
 import { STAGES } from './constants';
@@ -7,6 +8,7 @@ import { TemplatesModal } from './components/TemplatesModal';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { Toast, ToastProps } from './components/ui/Toast';
+import { Tour } from './components/Tour';
 
 function uid() {
   return 'p_' + Math.random().toString(36).slice(2, 9);
@@ -85,7 +87,8 @@ const App: React.FC = () => {
         title: 'Example: Food App',
         desc: 'Redesign checkout flow',
         notes: 'Problem: High drop-off at payment.\nGoal: Simplify steps.',
-        stages: STAGES.reduce((acc, s) => ({ ...acc, [s]: false }), {}),
+        stages: STAGES.reduce((acc, s) => ({ ...acc, [s.id]: false }), {}),
+        expandedStages: {},
         assets: [],
         createdAt: new Date().toISOString()
       };
@@ -122,7 +125,8 @@ const App: React.FC = () => {
       title,
       desc,
       notes: '',
-      stages: STAGES.reduce((acc, s) => ({ ...acc, [s]: false }), {}),
+      stages: STAGES.reduce((acc, s) => ({ ...acc, [s.id]: false }), {}),
+      expandedStages: {},
       assets: [],
       createdAt: new Date().toISOString()
     };
@@ -193,7 +197,7 @@ const App: React.FC = () => {
 
   const switchProject = (id: string) => setState(prev => ({ ...prev, activeProjectId: id }));
 
-  const toggleStage = (stage: string) => {
+  const toggleStage = (stageId: string) => {
     if (!state.activeProjectId) return;
     setState(prev => {
       const p = prev.projects[prev.activeProjectId!];
@@ -201,9 +205,52 @@ const App: React.FC = () => {
         ...prev,
         projects: {
           ...prev.projects,
-          [p.id]: { ...p, stages: { ...p.stages, [stage]: !p.stages[stage] } }
+          [p.id]: { ...p, stages: { ...p.stages, [stageId]: !p.stages[stageId] } }
         }
       };
+    });
+  };
+
+  const toggleStageExpanded = (stageId: string) => {
+    if (!state.activeProjectId) return;
+    setState(prev => {
+      const p = prev.projects[prev.activeProjectId!];
+      const currentExpanded = p.expandedStages || {};
+      return {
+        ...prev,
+        projects: {
+          ...prev.projects,
+          [p.id]: { ...p, expandedStages: { ...currentExpanded, [stageId]: !currentExpanded[stageId] } }
+        }
+      };
+    });
+  };
+
+  const markAllStages = () => {
+    if (!state.activeProjectId) return;
+    setState(prev => {
+      const p = prev.projects[prev.activeProjectId!];
+      const allTrue = STAGES.reduce((acc, s) => ({ ...acc, [s.id]: true }), {});
+      return {
+        ...prev,
+        projects: { ...prev.projects, [p.id]: { ...p, stages: allTrue } }
+      };
+    });
+    setToast({ message: 'All stages marked complete', type: 'success' });
+  };
+
+  const resetStages = () => {
+    if (!state.activeProjectId) return;
+    requestConfirm('Reset Progress?', 'This will uncheck all stages.', () => {
+      setState(prev => {
+        const p = prev.projects[prev.activeProjectId!];
+        const allFalse = STAGES.reduce((acc, s) => ({ ...acc, [s.id]: false }), {});
+        return {
+          ...prev,
+          projects: { ...prev.projects, [p.id]: { ...p, stages: allFalse } }
+        };
+      });
+      setToast({ message: 'Progress reset', type: 'info' });
     });
   };
 
@@ -220,40 +267,81 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const handleAssetUpload = async (file: File) => {
-    if (!state.activeProjectId) return;
-
+  // Helper to handle cloud vs local file logic
+  const processFile = async (file: File): Promise<Partial<Asset>> => {
     // 1. Check Cloud
     const cloudAvailable = window.FB && window.FB._initialized && window.FB.auth && window.FB.auth.currentUser;
 
     if (cloudAvailable && window.uploadFileToFirebase) {
       try {
         const url = await window.uploadFileToFirebase(file);
-        addAsset({ name: file.name, type: file.type, url, createdAt: new Date().toISOString() });
-        setToast({ message: 'Asset uploaded to Cloud', type: 'success' });
-        return;
+        return { name: file.name, type: file.type, url, createdAt: new Date().toISOString(), size: file.size };
       } catch (err) {
         console.warn('Firebase upload failed', err);
+        throw err;
       }
     }
 
     // 2. Local
     if (file.size > 2.5 * 1024 * 1024) {
       alert('File is too large (>2.5MB) for Local Mode.\n\nEnable Cloud Sync in index.html for unlimited uploads.');
-      return;
+      throw new Error('File too large');
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      addAsset({
-        name: file.name,
-        type: file.type,
-        dataURL: e.target?.result as string,
-        createdAt: new Date().toISOString()
-      });
-      setToast({ message: 'Asset saved locally', type: 'success' });
-    };
-    reader.readAsDataURL(file);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        resolve({
+          name: file.name,
+          type: file.type,
+          dataURL: e.target?.result as string,
+          createdAt: new Date().toISOString(),
+          size: file.size
+        });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleAssetUpload = async (file: File) => {
+    if (!state.activeProjectId) return;
+
+    try {
+      const assetData = await processFile(file);
+      addAsset(assetData as Asset);
+      setToast({ message: 'Asset uploaded', type: 'success' });
+    } catch (e) {
+      // Error handled in processFile mostly (alert)
+    }
+  };
+
+  const handleReplaceAsset = async (index: number, file: File) => {
+     if (!state.activeProjectId) return;
+     
+     try {
+       const assetData = await processFile(file);
+       setState(prev => {
+         if (!prev.activeProjectId) return prev;
+         const p = prev.projects[prev.activeProjectId];
+         const newAssets = [...p.assets];
+         // Replace at index, preserving name if desired? Let's overwrite everything for simplicity of "replace"
+         // or we could keep the old name if that was the intent. Usually "replace" means update content.
+         // Let's update content but keep createdAt if we want "history", but typically replace updates everything.
+         newAssets[index] = assetData as Asset;
+         
+         return {
+           ...prev,
+           projects: {
+             ...prev.projects,
+             [p.id]: { ...p, assets: newAssets }
+           }
+         };
+       });
+       setToast({ message: 'Asset replaced', type: 'success' });
+     } catch (e) {
+       // Error handled
+     }
   };
 
   const addAsset = (asset: Asset) => {
@@ -308,7 +396,7 @@ const App: React.FC = () => {
               ...p, 
               notes: '', 
               assets: [], 
-              stages: STAGES.reduce((a, s) => ({ ...a, [s]: false }), {}) 
+              stages: STAGES.reduce((a, s) => ({ ...a, [s.id]: false }), {}) 
             }
           }
         };
@@ -348,6 +436,9 @@ const App: React.FC = () => {
           deleteProject={deleteProject}
           duplicateProject={duplicateProject}
           toggleStage={toggleStage}
+          toggleStageExpanded={toggleStageExpanded}
+          markAllStages={markAllStages}
+          resetStages={resetStages}
           onUploadAsset={handleAssetUpload}
         />
         <Workspace 
@@ -355,10 +446,14 @@ const App: React.FC = () => {
           updateProject={updateProject}
           updateProjectNotes={updateProjectNotes}
           deleteAsset={deleteAsset}
+          onReplaceAsset={handleReplaceAsset}
           openTemplates={() => setIsTemplatesOpen(true)}
           clearProjectData={clearProjectData}
         />
       </div>
+
+      {/* Global Guided Tour */}
+      <Tour />
 
       <TemplatesModal 
         isOpen={isTemplatesOpen} 

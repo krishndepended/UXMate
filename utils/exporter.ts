@@ -1,3 +1,4 @@
+
 import { Project } from "../types";
 
 function escapeHtml(s: string) {
@@ -5,6 +6,27 @@ function escapeHtml(s: string) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+// Simple markdown-like parser to allow HTML pass-through for <details> tags
+// while escaping other content.
+function renderNotesHtml(notes: string): string {
+  if (!notes) return 'No notes added.';
+  
+  // If the user used the "Insert as Block" feature, the text contains HTML tags <details>...
+  // We want to render those tags, but escape everything else.
+  
+  // Strategy: Split by the known HTML tags we want to preserve.
+  // This is a simple regex approach.
+  const parts = notes.split(/(<\/?details(?: open)?>|<\/?summary>)/g);
+  
+  return parts.map(part => {
+    if (part.match(/<\/?details(?: open)?>|<\/?summary>/)) {
+      return part; // Return tag as-is
+    } else {
+      return escapeHtml(part); // Escape text content
+    }
+  }).join('');
 }
 
 // Shared HTML generator for both Web Export and PDF Export
@@ -29,6 +51,15 @@ function getCaseStudyBodyHtml(project: Project): string {
     </li>`
   ).join('');
 
+  // Use white-space: pre-wrap for the text parts to preserve newlines, 
+  // but we need to be careful because we are now injecting HTML tags.
+  // We will wrap the whole thing in a div with pre-wrap, but the <details> tags should default to block.
+  // Actually, <details> inside pre-wrap might look odd if indentation exists. 
+  // Let's use a div container and manage whitespace via CSS on the text parts only? 
+  // Simpler: just use white-space: pre-wrap on the container, browsers handle <details> okay usually.
+  
+  const notesHtml = renderNotesHtml(project.notes);
+
   return `
     <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; background: #ffffff; padding: 40px;">
       <h1 style="border-bottom: 2px solid #e5e7eb; padding-bottom: 12px; margin-bottom: 16px; color: #111827; font-size: 28px; font-weight: 800;">${escapeHtml(project.title)}</h1>
@@ -40,7 +71,7 @@ function getCaseStudyBodyHtml(project: Project): string {
 
       <h2 style="margin-top: 32px; color: #111827; font-size: 20px; font-weight: 700; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">Project Notes & Research</h2>
       <div style="background: #f9fafb; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 12px;">
-        <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; font-size: 14px; color: #374151;">${escapeHtml(project.notes || 'No notes added.')}</pre>
+        <div style="white-space: pre-wrap; font-family: inherit; margin: 0; font-size: 14px; color: #374151;">${notesHtml}</div>
       </div>
 
       <h2 style="margin-top: 32px; color: #111827; font-size: 20px; font-weight: 700; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">Process & Progress</h2>
@@ -68,6 +99,9 @@ export function downloadCaseStudy(project: Project) {
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; max-width: 800px; margin: 0 auto; padding: 40px 20px; background: #ffffff; }
     img { display: block; margin: 0 auto; }
+    details { margin: 10px 0; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; background: #fff; }
+    summary { font-weight: 600; cursor: pointer; color: #2563eb; outline: none; }
+    details[open] summary { margin-bottom: 8px; border-bottom: 1px dashed #e5e7eb; padding-bottom: 4px; }
   </style>
 </head>
 <body>

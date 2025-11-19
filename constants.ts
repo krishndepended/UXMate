@@ -1,25 +1,34 @@
+
 // REMOVED_AI: removed AI integration - local only
 import { Template } from "./types";
 
-export const STAGES = [
-  'Problem Understanding',
-  'Research',
-  'User Insights & Persona',
-  'Journey Mapping',
-  'Sketching / Ideation',
-  'User Flow / IA',
-  'Wireframes (Low/Mid)',
-  'UI Design (High-Fidelity)',
-  'Prototype',
-  'Usability Testing',
-  'Iteration',
-  'Case Study / Delivery'
+export interface StageDef {
+  id: string;
+  label: string;
+  help: string;
+}
+
+export const STAGES: StageDef[] = [
+  { id: 'Problem Understanding', label: 'Problem Understanding', help: 'Define the core user problem and align on business goals.' },
+  { id: 'Research', label: 'Research', help: 'Conduct user interviews, surveys, and competitive analysis.' },
+  { id: 'User Insights & Persona', label: 'User Insights & Persona', help: 'Synthesize findings into personas, empathy maps, and key insights.' },
+  { id: 'Journey Mapping', label: 'Journey Mapping', help: 'Map out the current and future state user journeys.' },
+  { id: 'Sketching / Ideation', label: 'Sketching / Ideation', help: 'Brainstorm diverse solutions and sketch rough ideas (Crazy 8s).' },
+  { id: 'User Flow / IA', label: 'User Flow / IA', help: 'Define the information architecture, sitemap, and user flows.' },
+  { id: 'Wireframes (Low/Mid)', label: 'Wireframes (Low/Mid)', help: 'Create structural layouts to focus on functionality without visual design.' },
+  { id: 'UI Design (High-Fidelity)', label: 'UI Design (High-Fidelity)', help: 'Apply visual systems, typography, colors, and branding.' },
+  { id: 'Prototype', label: 'Prototype', help: 'Build interactive prototypes to simulate the final experience.' },
+  { id: 'Usability Testing', label: 'Usability Testing', help: 'Test with real users, observe behavior, and gather feedback.' },
+  { id: 'Iteration', label: 'Iteration', help: 'Refine and improve the design based on testing results.' },
+  { id: 'Case Study / Delivery', label: 'Case Study / Delivery', help: 'Document the process, prepare assets for handoff, and export case study.' }
 ];
 
 export const TEMPLATES: Template[] = [
   {
     key: 'problem',
     label: 'Problem Statement',
+    category: 'Strategy',
+    tags: ['definition', 'goals'],
     desc: 'One sentence formula',
     content: `Problem statement (one line)
 Formula: Users struggle with [X] because [Y]. We will improve [Z] so that [benefit].
@@ -29,6 +38,8 @@ Example: Users struggle to find saved orders because the menu is hidden. We will
   {
     key: 'research',
     label: 'Research Script',
+    category: 'Research',
+    tags: ['interview', 'survey'],
     desc: 'Interview + Survey guide',
     content: `Research script — Interview guide (5–8 minutes)
 
@@ -43,6 +54,8 @@ Survey quick items: frequency, satisfaction (1–5), biggest pain point.`
   {
     key: 'persona',
     label: 'Persona Template',
+    category: 'Research',
+    tags: ['users', 'empathy'],
     content: `Persona template
 
 Name: (e.g., Kavya)
@@ -58,6 +71,8 @@ Implications: What this means for design.`
   {
     key: 'journey',
     label: 'Journey Map',
+    category: 'Strategy',
+    tags: ['mapping', 'flow'],
     content: `Journey map (simple)
 
 Stages (left→right): Awareness → Entry → Task → Completion → Aftercare
@@ -67,6 +82,8 @@ For each stage: user action, feelings, pain points, opportunities (ideas).`
   {
     key: 'wireframe',
     label: 'Wireframe Checklist',
+    category: 'Design',
+    tags: ['lo-fi', 'structure'],
     content: `Wireframe checklist
 
 - Clear hierarchy for main action
@@ -79,6 +96,8 @@ For each stage: user action, feelings, pain points, opportunities (ideas).`
   {
     key: 'ui',
     label: 'UI Checklist',
+    category: 'Design',
+    tags: ['hi-fi', 'style'],
     desc: 'Style guide basics',
     content: `UI checklist & style system
 
@@ -92,6 +111,8 @@ For each stage: user action, feelings, pain points, opportunities (ideas).`
   {
     key: 'prototype',
     label: 'Prototype Tips',
+    category: 'Design',
+    tags: ['interaction', 'flow'],
     content: `Prototype tips
 
 - Timebox flows (3 primary tasks)
@@ -102,6 +123,8 @@ For each stage: user action, feelings, pain points, opportunities (ideas).`
   {
     key: 'test',
     label: 'Usability Test Script',
+    category: 'Testing',
+    tags: ['validation', 'observation'],
     content: `Usability test script (moderated)
 
 1) Task 1: "Find X and do Y" — observe success/time
@@ -113,6 +136,8 @@ Collect quotes: "I expected..."`
   {
     key: 'case',
     label: 'Case Study Outline',
+    category: 'Strategy',
+    tags: ['portfolio', 'docs'],
     content: `Case study outline (1–2 pages)
 
 1) Title & 1-line summary

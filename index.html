@@ -21,7 +21,8 @@
             background: '#0f172a',
             surface: '#1e293b',
             accent: '#60a5fa',
-            muted: '#94a3b8',
+            // Updated muted to Slate-300 for WCAG AA contrast against dark surface
+            muted: '#cbd5e1', 
             glass: 'rgba(255,255,255,0.05)',
             success: '#34d399',
             danger: '#f87171',
@@ -40,6 +41,12 @@
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
     .loader { border: 2px solid #f3f3f3; border-top: 2px solid #60a5fa; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    /* Improved focus visibility */
+    :focus-visible {
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
   </style>
 
   <!-- External Libraries -->

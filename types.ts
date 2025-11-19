@@ -6,6 +6,7 @@ export interface Asset {
   url?: string;     // New: used for remote Firebase files
   storagePath?: string; // New: path in storage for reference
   createdAt: string;
+  size?: number; // File size in bytes
 }
 
 export interface Project {
@@ -14,6 +15,7 @@ export interface Project {
   desc: string;
   notes: string;
   stages: Record<string, boolean>;
+  expandedStages?: Record<string, boolean>; // Tracks which stage details are open
   assets: Asset[];
   createdAt: string;
 }
@@ -28,6 +30,8 @@ export interface Template {
   label: string;
   desc?: string;
   content: string;
+  category?: 'Research' | 'Design' | 'Testing' | 'Strategy';
+  tags?: string[];
 }
 
 declare global {
