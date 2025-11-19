@@ -5,22 +5,96 @@ import { Template } from "./types";
 export interface StageDef {
   id: string;
   label: string;
+  description: string;
   help: string;
+  templateCategory?: string;
 }
 
 export const STAGES: StageDef[] = [
-  { id: 'Problem Understanding', label: 'Problem Understanding', help: 'Define the core user problem and align on business goals.' },
-  { id: 'Research', label: 'Research', help: 'Conduct user interviews, surveys, and competitive analysis.' },
-  { id: 'User Insights & Persona', label: 'User Insights & Persona', help: 'Synthesize findings into personas, empathy maps, and key insights.' },
-  { id: 'Journey Mapping', label: 'Journey Mapping', help: 'Map out the current and future state user journeys.' },
-  { id: 'Sketching / Ideation', label: 'Sketching / Ideation', help: 'Brainstorm diverse solutions and sketch rough ideas (Crazy 8s).' },
-  { id: 'User Flow / IA', label: 'User Flow / IA', help: 'Define the information architecture, sitemap, and user flows.' },
-  { id: 'Wireframes (Low/Mid)', label: 'Wireframes (Low/Mid)', help: 'Create structural layouts to focus on functionality without visual design.' },
-  { id: 'UI Design (High-Fidelity)', label: 'UI Design (High-Fidelity)', help: 'Apply visual systems, typography, colors, and branding.' },
-  { id: 'Prototype', label: 'Prototype', help: 'Build interactive prototypes to simulate the final experience.' },
-  { id: 'Usability Testing', label: 'Usability Testing', help: 'Test with real users, observe behavior, and gather feedback.' },
-  { id: 'Iteration', label: 'Iteration', help: 'Refine and improve the design based on testing results.' },
-  { id: 'Case Study / Delivery', label: 'Case Study / Delivery', help: 'Document the process, prepare assets for handoff, and export case study.' }
+  { 
+    id: 'problem', 
+    label: '1. Understand the Problem', 
+    description: 'Define the core user problem, business goals, and success metrics.',
+    help: 'What are we solving? Who is it for? Why does it matter now?',
+    templateCategory: 'Strategy'
+  },
+  { 
+    id: 'research', 
+    label: '2. Research', 
+    description: 'Conduct user interviews, competitive analysis, and surveys.',
+    help: 'Gather qualitative and quantitative data to validate assumptions.',
+    templateCategory: 'Research'
+  },
+  { 
+    id: 'persona', 
+    label: '3. Persona', 
+    description: 'Synthesize research into user personas and empathy maps.',
+    help: 'Create a representative character of your target audience.',
+    templateCategory: 'Research'
+  },
+  { 
+    id: 'journey', 
+    label: '4. Journey Map', 
+    description: 'Map out the current and future state user journeys.',
+    help: 'Identify pain points and opportunities across the user timeline.',
+    templateCategory: 'Strategy'
+  },
+  { 
+    id: 'ideation', 
+    label: '5. Sketches / Ideation', 
+    description: 'Brainstorm diverse solutions and sketch rough ideas (Crazy 8s).',
+    help: 'Focus on quantity over quality. Explore different approaches.',
+    templateCategory: 'Design'
+  },
+  { 
+    id: 'userflow', 
+    label: '6. User Flow / IA', 
+    description: 'Define the information architecture, sitemap, and logical flows.',
+    help: 'Map the path a user takes to complete a task.',
+    templateCategory: 'Design'
+  },
+  { 
+    id: 'wireframes', 
+    label: '7. Wireframes', 
+    description: 'Create structural layouts (Low/Mid-Fi) focusing on functionality.',
+    help: 'Layout content without getting distracted by colors or typography.',
+    templateCategory: 'Design'
+  },
+  { 
+    id: 'ui_design', 
+    label: '8. UI Design', 
+    description: 'Apply visual systems, typography, colors, and branding (High-Fi).',
+    help: 'Bring the interface to life with the design system.',
+    templateCategory: 'Design'
+  },
+  { 
+    id: 'prototype', 
+    label: '9. Prototype', 
+    description: 'Build interactive prototypes to simulate the final experience.',
+    help: 'Link screens together to test interactions and transitions.',
+    templateCategory: 'Testing'
+  },
+  { 
+    id: 'testing', 
+    label: '10. Usability Testing', 
+    description: 'Test with real users, observe behavior, and gather feedback.',
+    help: 'Validate your solution. Does it actually solve the problem?',
+    templateCategory: 'Testing'
+  },
+  { 
+    id: 'iteration', 
+    label: '11. Iteration', 
+    description: 'Refine and improve the design based on testing results.',
+    help: 'What changes are needed based on user feedback?',
+    templateCategory: 'Testing'
+  },
+  { 
+    id: 'casestudy', 
+    label: '12. Case Study', 
+    description: 'Compile your process into a portfolio-ready presentation.',
+    help: 'Tell the story of your project from problem to solution.',
+    templateCategory: 'Delivery'
+  }
 ];
 
 // Extended Template Interface for internal use

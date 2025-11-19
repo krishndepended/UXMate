@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { TEMPLATES, RichTemplate } from '../constants';
 import { Button } from './ui/Button';
@@ -18,6 +19,7 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({ isOpen, onClose,
   const [showingSampleId, setShowingSampleId] = useState<string | null>(null);
 
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const touchStartY = useRef<number>(0);
 
   // Extract categories
   const categories = useMemo(() => {
@@ -50,6 +52,19 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({ isOpen, onClose,
       setTimeout(() => closeBtnRef.current?.focus(), 50);
     }
   }, [isOpen]);
+
+  // Swipe to close logic
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.targetTouches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const touchEndY = e.changedTouches[0].clientY;
+    // If swiped down more than 75px
+    if (touchEndY - touchStartY.current > 75) {
+      onClose();
+    }
+  };
 
   // Parse variables from template content: {{variableName}}
   const extractVariables = (content: string) => {
@@ -149,27 +164,40 @@ ${finalContent}
     onClose();
   };
 
+  // Shared Mobile Handle Component
+  const MobileHandle = () => (
+    <div 
+      className="md:hidden h-10 flex items-center justify-center shrink-0 cursor-grab active:cursor-grabbing touch-none border-b border-slate-50"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+       <div className="w-12 h-1.5 rounded-full bg-slate-200" />
+    </div>
+  );
+
   // RENDER: VARIABLE INPUT STEP
   if (step === 'variables' && selectedTemplate) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-        <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
-          <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+      <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-200">
+        <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-t-2xl md:rounded-xl shadow-2xl flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden transition-transform">
+          <MobileHandle />
+          
+          <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-white z-10">
             <div>
               <h2 className="text-xl font-bold text-slate-900">Customize Template</h2>
-              <p className="text-xs text-slate-500">Fill in the placeholders for <strong>{selectedTemplate.label}</strong></p>
+              <p className="text-xs text-slate-500 mt-1">Fill in placeholders for <strong>{selectedTemplate.label}</strong></p>
             </div>
-            <button onClick={() => setStep('list')} className="text-slate-400 hover:text-slate-900"><IconClose className="w-5 h-5" /></button>
+            <button onClick={() => setStep('list')} className="text-slate-400 hover:text-slate-900 hidden md:block"><IconClose className="w-5 h-5" /></button>
           </div>
           
           <div className="p-6 overflow-y-auto flex-1">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                {Object.keys(variables).map(key => (
                  <div key={key}>
-                   <label className="block text-xs uppercase font-bold text-slate-500 mb-1 tracking-wide">{key.replace(/([A-Z])/g, ' $1').trim()}</label>
+                   <label className="block text-xs uppercase font-bold text-slate-500 mb-1.5 tracking-wide">{key.replace(/([A-Z])/g, ' $1').trim()}</label>
                    <input 
                      type="text" 
-                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:border-blue-500 outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                      placeholder={`Enter ${key}...`}
                      value={variables[key]}
                      onChange={e => setVariables({...variables, [key]: e.target.value})}
@@ -178,20 +206,20 @@ ${finalContent}
                  </div>
                ))}
              </div>
-             <div className="mt-6 flex justify-end">
+             <div className="mt-8 flex justify-end">
                 <Button variant="ghost" size="sm" onClick={handleFillExample} className="text-blue-600 hover:bg-blue-50">
-                   <IconBeaker className="w-4 h-4 mr-2" /> Fill with Example Data
+                   <IconBeaker className="w-4 h-4 mr-2" /> Use Example Data
                 </Button>
              </div>
           </div>
 
-          <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
-            <Button variant="ghost" onClick={() => setStep('list')}>Back</Button>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => handleInsertFinal(selectedTemplate.content, selectedTemplate, 'plain')}>
-                Insert Plain Text
+          <div className="p-5 border-t border-slate-100 bg-slate-50 flex flex-col-reverse md:flex-row justify-between items-center gap-3 md:gap-0 pb-safe">
+            <Button variant="ghost" onClick={() => setStep('list')} className="w-full md:w-auto">Back</Button>
+            <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+              <Button variant="outline" className="w-full md:w-auto justify-center" onClick={() => handleInsertFinal(selectedTemplate.content, selectedTemplate, 'plain')}>
+                Insert as Text
               </Button>
-              <Button onClick={() => handleInsertFinal(selectedTemplate.content, selectedTemplate, 'block')}>
+              <Button className="w-full md:w-auto justify-center" onClick={() => handleInsertFinal(selectedTemplate.content, selectedTemplate, 'block')}>
                 Insert as Block
               </Button>
             </div>
@@ -205,14 +233,15 @@ ${finalContent}
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true">
-      <div className="bg-white border border-slate-200 w-full max-w-5xl rounded-xl shadow-2xl flex flex-col h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-200" role="dialog" aria-modal="true">
+      <div className="bg-white border border-slate-200 w-full max-w-5xl rounded-t-2xl md:rounded-xl shadow-2xl flex flex-col h-[95vh] md:h-[85vh] overflow-hidden transition-transform">
+        <MobileHandle />
         
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-100">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0">
           <div>
              <h2 className="text-xl font-bold text-slate-900">Template Library</h2>
-             <p className="text-xs text-slate-500">Accelerate your workflow with structured guides.</p>
+             <p className="text-xs text-slate-500 mt-0.5">Accelerate your workflow with structured guides.</p>
           </div>
           <button 
             ref={closeBtnRef}
@@ -223,89 +252,88 @@ ${finalContent}
           </button>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar */}
-          <div className="w-48 border-r border-slate-100 bg-slate-50 p-4 space-y-1 overflow-y-auto hidden md:block">
-            <h3 className="text-xs font-bold text-slate-400 uppercase mb-2 tracking-wide">Categories</h3>
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeCategory === cat 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-col h-full overflow-hidden bg-slate-50/30">
+          
+          {/* Controls Bar */}
+          <div className="px-6 py-4 border-b border-slate-100 flex flex-col md:flex-row gap-4 bg-white z-10">
+             {/* Categories Pills */}
+             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar flex-1">
+                {categories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
+                      activeCategory === cat 
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+             </div>
 
-          {/* Content */}
-          <div className="flex-1 flex flex-col bg-white">
-            <div className="p-4 border-b border-slate-100 flex gap-3 bg-white z-10">
-              <div className="relative flex-1">
+             {/* Search */}
+             <div className="relative w-full md:w-64">
                 <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input 
                   type="text" 
                   placeholder="Search templates..." 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                 />
               </div>
-            </div>
+          </div>
 
-            <div className="flex-1 overflow-y-auto p-5 bg-slate-50/50">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Content Grid */}
+          <div className="flex-1 overflow-y-auto p-6 pb-safe">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredTemplates.map(t => {
                    const isSampleOpen = showingSampleId === t.key;
                    return (
-                    <div key={t.key} className="bg-white border border-slate-200 rounded-xl p-4 hover:border-blue-300 transition-all flex flex-col group shadow-sm">
+                    <div key={t.key} className="bg-white border border-slate-200 rounded-xl p-5 hover:border-blue-300 transition-all flex flex-col h-full shadow-sm group">
+                      {/* Header */}
                       <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-slate-800">{t.label}</h3>
-                          <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200 uppercase">{t.category}</span>
-                        </div>
+                        <h3 className="font-bold text-slate-800 text-base">{t.label}</h3>
+                        <button 
+                             onClick={() => setShowingSampleId(isSampleOpen ? null : t.key)}
+                             className="text-[10px] font-medium text-slate-400 hover:text-blue-600 transition-colors bg-slate-50 px-2 py-1 rounded border border-slate-100"
+                           >
+                             {isSampleOpen ? 'Hide Sample' : 'View Sample'}
+                        </button>
                       </div>
                       
-                      <p className="text-sm text-slate-500 mb-3">{t.desc}</p>
+                      {/* Description */}
+                      <p className="text-sm text-slate-500 mb-3 leading-relaxed">{t.desc}</p>
                       
                       {/* Tags */}
-                      <div className="flex flex-wrap gap-2 mb-4">
+                      <div className="flex flex-wrap gap-2 mb-4 mt-auto">
                         {t.tags?.map(tag => (
-                          <span key={tag} className="inline-flex items-center text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">
-                             <IconTag className="w-3 h-3 mr-1 opacity-50" /> {tag}
+                          <span key={tag} className="inline-flex items-center text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                             <IconTag className="w-3 h-3 mr-1 opacity-40" /> {tag}
                           </span>
                         ))}
                       </div>
 
-                      {/* Preview / Sample Area */}
-                      <div className="mt-auto bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
-                        <div className="p-3 text-xs text-slate-500 font-mono leading-relaxed border-b border-slate-200 relative">
-                           {isSampleOpen ? (
-                             <div className="whitespace-pre-wrap text-slate-700">{t.example}</div>
-                           ) : (
-                             <div className="line-clamp-3 opacity-70">{t.preview}</div>
-                           )}
-                           <button 
-                             onClick={() => setShowingSampleId(isSampleOpen ? null : t.key)}
-                             className="absolute top-2 right-2 text-[10px] flex items-center gap-1 bg-white border border-slate-200 px-2 py-1 rounded hover:text-blue-600 transition-colors"
-                           >
-                             <IconBeaker className="w-3 h-3" /> {isSampleOpen ? 'Hide Sample' : 'View Sample'}
-                           </button>
-                        </div>
-                        <div className="p-2 bg-white flex gap-2">
-                          <Button 
-                            size="sm" 
-                            className="w-full justify-center" 
-                            onClick={() => handleTemplateSelect(t)}
-                          >
-                            <IconPlus className="w-3 h-3 mr-1" /> Use Template
-                          </Button>
-                        </div>
-                      </div>
+                      {/* Preview Area */}
+                      {isSampleOpen ? (
+                         <div className="mb-4 bg-slate-50 rounded-lg border border-slate-200 p-3 text-xs text-slate-700 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto shadow-inner">
+                           {t.example}
+                         </div>
+                      ) : (
+                         <div className="mb-4 bg-slate-50 rounded-lg border border-slate-200 p-3 text-xs text-slate-400 font-mono line-clamp-3 italic">
+                           {t.preview}
+                         </div>
+                      )}
+
+                      {/* CTA */}
+                      <Button 
+                        className="w-full justify-center mt-auto" 
+                        onClick={() => handleTemplateSelect(t)}
+                      >
+                        <IconPlus className="w-4 h-4 mr-1.5" /> Use Template
+                      </Button>
                     </div>
                    );
                 })}
@@ -314,7 +342,6 @@ ${finalContent}
                 <div className="h-full flex items-center justify-center text-slate-400 opacity-50">No templates found.</div>
               )}
             </div>
-          </div>
         </div>
       </div>
     </div>

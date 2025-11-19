@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Project, AppState, Asset, ProjectVersion } from './types';
 import { STAGES } from './constants';
@@ -10,13 +11,13 @@ import { ExportModal } from './components/ExportModal';
 import { Toast, ToastProps } from './components/ui/Toast';
 import { Tour } from './components/Tour';
 import { Button } from './components/ui/Button';
-import { IconMenu, IconLayout, IconPlus, IconBug, IconTrash, IconClose, IconDownload, IconHistory } from './components/ui/Icons';
+import { IconMenu, IconLayout, IconPlus, IconBug, IconTrash, IconClose } from './components/ui/Icons';
 
 function uid() {
   return 'p_' + Math.random().toString(36).slice(2, 9);
 }
 
-const STORAGE_KEY = 'uxmate_projects_v1';
+const STORAGE_KEY = 'uxmate_projects_v2'; // Incremented version for structure change
 const STORAGE_WARNING_THRESHOLD = 4.5 * 1024 * 1024; 
 const ASSET_SIZE_WARNING_THRESHOLD = 30 * 1024 * 1024; 
 
@@ -25,6 +26,16 @@ const App: React.FC = () => {
     try {
       const local = localStorage.getItem(STORAGE_KEY);
       if (local) return JSON.parse(local);
+      
+      // Migration from V1?
+      const v1 = localStorage.getItem('uxmate_projects_v1');
+      if (v1) {
+         const parsedV1 = JSON.parse(v1);
+         // Basic migration logic could go here, but for now we just start fresh or load v1 data structure 
+         // which Typescript might complain about if strict, but we made types backwards compat.
+         return parsedV1;
+      }
+
     } catch (e) {
       console.error('Failed to load state', e);
     }
@@ -120,20 +131,13 @@ const App: React.FC = () => {
         e.preventDefault();
         setIsCreateModalOpen(true);
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
-        e.preventDefault();
-        if (state.activeProjectId && state.projects[state.activeProjectId]) {
-          setExportProject(state.projects[state.activeProjectId]);
-        } else {
-          setToast({ message: 'Select a project to export', type: 'info' });
-        }
-      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.activeProjectId, state.projects]);
+  }, []);
 
+  // Ensure example project exists
   useEffect(() => {
     if (Object.keys(state.projects).length === 0) {
       const id = uid();
@@ -141,11 +145,12 @@ const App: React.FC = () => {
         id,
         title: 'Example: Food App',
         desc: 'Redesign checkout flow',
-        notes: 'Problem: High drop-off at payment.\nGoal: Simplify steps.',
+        notes: '',
         stages: STAGES.reduce((acc, s) => ({ ...acc, [s.id]: false }), {}),
-        expandedStages: {},
+        steps: STAGES.reduce((acc, s) => ({ ...acc, [s.id]: { notes: s.id === 'problem' ? 'Problem: High drop-off at payment.' : '', isComplete: false } }), {}),
         assets: [],
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        currentStepId: 'problem'
       };
       setState({ projects: { [id]: example }, activeProjectId: id });
     }
@@ -159,18 +164,19 @@ const App: React.FC = () => {
       id,
       title,
       desc,
-      notes: '',
+      notes: '', // Legacy
       stages: STAGES.reduce((acc, s) => ({ ...acc, [s.id]: false }), {}),
-      expandedStages: {},
+      steps: STAGES.reduce((acc, s) => ({ ...acc, [s.id]: { notes: '', isComplete: false } }), {}),
       assets: [],
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      currentStepId: 'problem'
     };
     setState(prev => ({
       projects: { ...prev.projects, [id]: newProj },
       activeProjectId: id
     }));
     setToast({ message: 'Project created', type: 'success' });
-    setShowMobileProjects(false); // Close mobile sidebar on create
+    setShowMobileProjects(false);
   };
 
   const deleteProject = (id: string) => {
@@ -210,6 +216,39 @@ const App: React.FC = () => {
     }));
   };
 
+  const updateStepData = (stepId: string, data: { notes: string; isComplete: boolean }) => {
+     if (!activeProject) return;
+     setState(prev => {
+         const p = prev.projects[activeProject.id];
+         const newSteps = { ...p.steps };
+         newSteps[stepId] = { ...newSteps[stepId], ...data };
+         
+         // Auto-update history
+         const currentVersion: ProjectVersion = {
+            timestamp: new Date().toISOString(),
+            notes: p.notes,
+            stepData: newSteps
+         };
+         const newHistory = [currentVersion, ...(p.history || [])].slice(0, 3);
+
+         return {
+             ...prev,
+             projects: {
+                 ...prev.projects,
+                 [p.id]: { ...p, steps: newSteps, history: newHistory }
+             }
+         };
+     });
+  };
+
+  const handleStepSelect = (stepId: string) => {
+    if (activeProject) {
+        updateProject(activeProject.id, { currentStepId: stepId });
+        // Close mobile sidebar if open
+        setShowMobileProjects(false);
+    }
+  };
+
   const duplicateProject = (id: string) => {
     const source = state.projects[id];
     if(!source) return;
@@ -231,87 +270,8 @@ const App: React.FC = () => {
 
   const switchProject = (id: string) => {
     setState(prev => ({ ...prev, activeProjectId: id }));
-    setShowMobileProjects(false); // Close mobile sidebar on select
+    setShowMobileProjects(false);
   };
-
-  const toggleStage = (stageId: string) => {
-    if (!state.activeProjectId) return;
-    setState(prev => {
-      const p = prev.projects[prev.activeProjectId!];
-      return {
-        ...prev,
-        projects: {
-          ...prev.projects,
-          [p.id]: { ...p, stages: { ...p.stages, [stageId]: !p.stages[stageId] } }
-        }
-      };
-    });
-  };
-
-  const toggleStageExpanded = (stageId: string) => {
-    if (!state.activeProjectId) return;
-    setState(prev => {
-      const p = prev.projects[prev.activeProjectId!];
-      const currentExpanded = p.expandedStages || {};
-      return {
-        ...prev,
-        projects: {
-          ...prev.projects,
-          [p.id]: { ...p, expandedStages: { ...currentExpanded, [stageId]: !currentExpanded[stageId] } }
-        }
-      };
-    });
-  };
-
-  const markAllStages = () => {
-    if (!state.activeProjectId) return;
-    setState(prev => {
-      const p = prev.projects[prev.activeProjectId!];
-      const allTrue = STAGES.reduce((acc, s) => ({ ...acc, [s.id]: true }), {});
-      return {
-        ...prev,
-        projects: { ...prev.projects, [p.id]: { ...p, stages: allTrue } }
-      };
-    });
-    setToast({ message: 'All stages marked complete', type: 'success' });
-  };
-
-  const resetStages = () => {
-    if (!state.activeProjectId) return;
-    requestConfirm('Reset Progress?', 'This will uncheck all stages.', () => {
-      setState(prev => {
-        const p = prev.projects[prev.activeProjectId!];
-        const allFalse = STAGES.reduce((acc, s) => ({ ...acc, [s.id]: false }), {});
-        return {
-          ...prev,
-          projects: { ...prev.projects, [p.id]: { ...p, stages: allFalse } }
-        };
-      });
-      setToast({ message: 'Progress reset', type: 'info' });
-    });
-  };
-
-  const updateProjectNotes = useCallback((notes: string) => {
-    setState(prev => {
-      if (!prev.activeProjectId) return prev;
-      const p = prev.projects[prev.activeProjectId];
-      
-      const currentVersion: ProjectVersion = {
-        timestamp: new Date().toISOString(),
-        notes: p.notes
-      };
-      
-      const newHistory = [currentVersion, ...(p.history || [])].slice(0, 3);
-
-      return {
-        ...prev,
-        projects: {
-          ...prev.projects,
-          [p.id]: { ...p, notes, history: newHistory }
-        }
-      };
-    });
-  }, []);
 
   const restoreProjectVersion = useCallback((version: ProjectVersion) => {
     setState(prev => {
@@ -320,7 +280,8 @@ const App: React.FC = () => {
       
       const currentVersion: ProjectVersion = {
         timestamp: new Date().toISOString(),
-        notes: p.notes
+        notes: p.notes,
+        stepData: p.steps
       };
       const newHistory = [currentVersion, ...(p.history || [])].slice(0, 3);
 
@@ -328,7 +289,12 @@ const App: React.FC = () => {
         ...prev,
         projects: {
           ...prev.projects,
-          [p.id]: { ...p, notes: version.notes, history: newHistory }
+          [p.id]: { 
+              ...p, 
+              notes: version.notes, 
+              steps: version.stepData || p.steps, // Restore steps if available
+              history: newHistory 
+          }
         }
       };
     });
@@ -370,11 +336,15 @@ const App: React.FC = () => {
   };
 
   const handleAssetUpload = async (file: File) => {
-    if (!state.activeProjectId) return;
+    if (!activeProject) return;
     try {
       const assetData = await processFile(file);
-      addAsset(assetData as Asset);
-      setToast({ message: 'Asset uploaded', type: 'success' });
+      // Tag with current step!
+      const currentStep = activeProject.currentStepId || 'problem';
+      const assetWithStep: Asset = { ...(assetData as Asset), stepId: currentStep };
+      
+      addAsset(assetWithStep);
+      setToast({ message: 'Asset uploaded to ' + STAGES.find(s=>s.id===currentStep)?.label, type: 'success' });
     } catch (e) { }
   };
 
@@ -386,7 +356,9 @@ const App: React.FC = () => {
          if (!prev.activeProjectId) return prev;
          const p = prev.projects[prev.activeProjectId];
          const newAssets = [...p.assets];
-         newAssets[index] = assetData as Asset;
+         // Keep original stepId when replacing
+         const originalStepId = newAssets[index].stepId;
+         newAssets[index] = { ...(assetData as Asset), stepId: originalStepId };
          
          return {
            ...prev,
@@ -415,59 +387,42 @@ const App: React.FC = () => {
   };
 
   const deleteAsset = (index: number) => {
-    requestConfirm('Remove Asset?', 'Are you sure you want to delete this asset?', () => {
-      setState(prev => {
-        if (!prev.activeProjectId) return prev;
-        const p = prev.projects[prev.activeProjectId];
-        const newAssets = [...p.assets];
-        newAssets.splice(index, 1);
-        return {
-          ...prev,
-          projects: {
-            ...prev.projects,
-            [p.id]: { ...p, assets: newAssets }
-          }
-        };
-      });
-      setToast({ message: 'Asset removed', type: 'info' });
+    setConfirmConfig({
+        isOpen: true,
+        title: 'Remove Asset?',
+        message: 'Are you sure you want to delete this asset?',
+        onConfirm: () => {
+            setState(prev => {
+                if (!prev.activeProjectId) return prev;
+                const p = prev.projects[prev.activeProjectId];
+                const newAssets = [...p.assets];
+                newAssets.splice(index, 1);
+                return {
+                    ...prev,
+                    projects: { ...prev.projects, [p.id]: { ...p, assets: newAssets } }
+                };
+            });
+            setToast({ message: 'Asset removed', type: 'info' });
+        }
     });
   };
 
   const handleTemplateInsert = (content: string) => {
     if (!activeProject) return;
-    updateProjectNotes((activeProject.notes ? activeProject.notes + "\n\n" : "") + content);
-    setToast({ message: 'Template inserted', type: 'success' });
-  };
-
-  const clearProjectData = () => {
-    requestConfirm('Clear Project Data?', 'This will clear all notes, assets, and progress checklist. This cannot be undone.', () => {
-      setState(prev => {
-        if (!prev.activeProjectId) return prev;
-        const p = prev.projects[prev.activeProjectId];
-        return {
-          ...prev,
-          projects: {
-            ...prev.projects,
-            [p.id]: { 
-              ...p, 
-              notes: '', 
-              assets: [], 
-              stages: STAGES.reduce((a, s) => ({ ...a, [s.id]: false }), {}) 
-            }
-          }
-        };
-      });
-      setToast({ message: 'Project data cleared', type: 'info' });
+    const currentStep = activeProject.currentStepId || 'problem';
+    const currentNotes = activeProject.steps?.[currentStep]?.notes || '';
+    
+    updateStepData(currentStep, {
+        notes: currentNotes + (currentNotes ? "\n\n" : "") + content,
+        isComplete: activeProject.steps?.[currentStep]?.isComplete || false
     });
+    setToast({ message: 'Template inserted', type: 'success' });
   };
 
   const handleOpenExport = (project: Project) => {
     setExportProject(project);
   };
 
-  const requestConfirm = (title: string, message: string, onConfirm: () => void) => {
-    setConfirmConfig({ isOpen: true, title, message, onConfirm });
-  };
   const closeConfirm = () => setConfirmConfig(prev => ({ ...prev, isOpen: false }));
 
   const handleLogoClick = () => {
@@ -543,34 +498,28 @@ const App: React.FC = () => {
           switchProject={switchProject}
           deleteProject={deleteProject}
           duplicateProject={duplicateProject}
-          toggleStage={toggleStage}
-          toggleStageExpanded={toggleStageExpanded}
-          markAllStages={markAllStages}
-          resetStages={resetStages}
-          onUploadAsset={handleAssetUpload}
           onExport={handleOpenExport}
           className="flex p-0 h-full"
           mobileOpen={showMobileProjects}
           onCloseMobile={() => setShowMobileProjects(false)}
+          
+          currentStepId={activeProject?.currentStepId || 'problem'}
+          onStepSelect={handleStepSelect}
         />
 
         <Workspace 
           project={activeProject}
           updateProject={updateProject}
-          updateProjectNotes={updateProjectNotes}
+          updateStepData={updateStepData}
           restoreProjectVersion={restoreProjectVersion}
           deleteAsset={deleteAsset}
           onReplaceAsset={handleReplaceAsset}
           openTemplates={() => setIsTemplatesOpen(true)}
-          clearProjectData={clearProjectData}
           onExport={handleOpenExport}
-          
-          // Props passed for mobile tab views (Checklist/Assets)
-          toggleStage={toggleStage}
-          toggleStageExpanded={toggleStageExpanded}
-          markAllStages={markAllStages}
-          resetStages={resetStages}
           onUploadAsset={handleAssetUpload}
+
+          currentStepId={activeProject?.currentStepId || 'problem'}
+          onStepSelect={handleStepSelect}
 
           className="flex flex-1 p-0 h-full overflow-hidden"
         />
@@ -582,14 +531,8 @@ const App: React.FC = () => {
             <NavButton 
               active={showMobileProjects} 
               icon={IconMenu} 
-              label="Projects" 
+              label="Process" 
               onClick={() => setShowMobileProjects(!showMobileProjects)} 
-            />
-            <NavButton 
-              active={isTemplatesOpen} 
-              icon={IconLayout} 
-              label="Templates" 
-              onClick={() => setIsTemplatesOpen(!isTemplatesOpen)} 
             />
          </div>
          
@@ -606,19 +549,10 @@ const App: React.FC = () => {
          
          <div className="flex-1 flex justify-around items-end pb-2">
             <NavButton 
-               active={false}
-               icon={IconDownload} 
-               label="Export" 
-               onClick={() => activeProject ? handleOpenExport(activeProject) : setToast({ message: 'Open a project to export', type: 'info' })} 
-               disabled={!activeProject}
-            />
-             {/* Hidden dummy button for symmetry or extra feature */}
-             <NavButton 
-               active={false}
-               icon={IconHistory} 
-               label="History" 
-               disabled={true}
-               className="opacity-0 pointer-events-none"
+              active={isTemplatesOpen} 
+              icon={IconLayout} 
+              label="Templates" 
+              onClick={() => setIsTemplatesOpen(!isTemplatesOpen)} 
             />
          </div>
       </nav>
@@ -709,7 +643,7 @@ const NavButton = ({ active, icon: Icon, label, onClick, disabled = false, class
   <button 
     onClick={onClick} 
     disabled={disabled}
-    className={`flex flex-col items-center gap-1 p-2 min-w-[60px] active-scale touch-target ${active ? 'text-blue-600' : 'text-slate-500'} ${disabled ? 'opacity-40' : ''} ${className}`}
+    className={`flex flex-col items-center gap-1 p-2 min-w-[60px] active-scale touch-target ripple-tap ${active ? 'text-blue-600' : 'text-slate-500'} ${disabled ? 'opacity-40' : ''} ${className}`}
   >
     <Icon className="w-6 h-6" />
     <span className="text-[10px] font-medium tracking-tight">{label}</span>

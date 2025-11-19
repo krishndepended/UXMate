@@ -29,7 +29,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onClick, onContextM
 
   return (
     <div 
-      className="group relative bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-all cursor-pointer flex-shrink-0 snap-start w-full sm:w-auto sm:min-w-[200px] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+      className="group relative bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-all cursor-pointer flex-shrink-0 snap-start w-full sm:w-auto sm:min-w-[200px] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 card-hover"
       onClick={onClick}
       onContextMenu={onContextMenu}
       onKeyDown={handleKeyDown}
