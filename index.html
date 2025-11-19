@@ -3,10 +3,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>UXMate — Project Coach</title>
   <meta name="description" content="A comprehensive UX project management tool.">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#ffffff">
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="./manifest.json">
@@ -15,55 +15,84 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
-          colors: {
-            background: '#0f172a',
-            surface: '#1e293b',
-            accent: '#60a5fa',
-            // Updated muted to Slate-300 for WCAG AA contrast against dark surface
-            muted: '#cbd5e1', 
-            glass: 'rgba(255,255,255,0.05)',
-            success: '#34d399',
-            danger: '#f87171',
-          },
           fontFamily: {
-            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            sans: ['Inter', 'sans-serif'],
           },
+          boxShadow: {
+            'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+            'glow': '0 0 15px rgba(59, 130, 246, 0.5)',
+            'fab': '0 8px 30px rgba(37, 99, 235, 0.3)',
+          },
+          borderRadius: {
+            'xl': '1rem',
+            '2xl': '1.5rem',
+            '3xl': '2rem',
+          }
         },
       },
     }
   </script>
   <style>
-    body { background-color: #0f172a; color: #e6eef8; }
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: #0f172a; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    .loader { border: 2px solid #f3f3f3; border-top: 2px solid #60a5fa; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; }
+    body { 
+      background-color: #f8fafc; 
+      color: #0f172a;
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    .loader { border: 2px solid #cbd5e1; border-top: 2px solid #3b82f6; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     
-    /* Improved focus visibility */
+    /* Focus visibility */
     :focus-visible {
-      outline: 2px solid #60a5fa;
+      outline: 2px solid #3b82f6;
       outline-offset: 2px;
+    }
+
+    /* Playful Animations */
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+      70% { box-shadow: 0 0 0 12px rgba(37, 99, 235, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+    }
+    
+    .fab-pulse {
+      animation: pulse-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    .active-scale:active {
+      transform: scale(0.92);
+      transition: transform 0.1s ease-out;
+    }
+
+    /* Glassmorphism */
+    .glass-nav {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    /* Safe Area for iPhone X+ */
+    .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom, 20px);
     }
   </style>
 
   <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <!-- Babel Standalone: Enables running TSX/JSX locally without a build step -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   
-  <!-- Firebase Global Init (Module based) - GATED FOR LOCAL MODE -->
+  <!-- Firebase Global Init -->
   <script type="module">
-    /*
-      GLOBAL FIREBASE INITIALIZER
-      - Gated: Only initializes if valid config is provided.
-      - Exposes window.FB and window.uploadFileToFirebase(file).
-    */
-    
-    // ====== [OPTIONAL] PASTE YOUR FIREBASE CONFIG BELOW TO ENABLE CLOUD SYNC ======
-    // If you leave these as "REPLACE_...", the app runs in Offline/Local Mode.
     const FIREBASE_CONFIG_PLACEHOLDER = {
       apiKey: "REPLACE_API_KEY",
       authDomain: "REPLACE_PROJECT.firebaseapp.com",
@@ -72,12 +101,10 @@
       messagingSenderId: "REPLACE_SENDER_ID",
       appId: "REPLACE_APP_ID"
     };
-    // ==============================================================================
 
     window.initFirebaseIfNeeded = async function(config) {
-      // 1. Check for placeholders or missing config -> Enforce Local Mode
       if(!config || !config.apiKey || config.apiKey.startsWith("REPLACE_")) {
-        console.log('UXMate: Running in Local Mode (Cloud Sync Disabled). To enable, update FIREBASE_CONFIG_PLACEHOLDER in index.html');
+        console.log('UXMate: Running in Local Mode.');
         return null;
       }
 
@@ -100,8 +127,7 @@
         const db = getFirestore(app);
         const storage = getStorage(app);
 
-        // Anonymous Auth
-        signInAnonymously(auth).catch(e => console.warn('Firebase Auth failed (Offline Mode):', e));
+        signInAnonymously(auth).catch(e => console.warn('Firebase Auth failed:', e));
 
         window.FB = {
           _initialized: true,
@@ -111,7 +137,6 @@
           onAuthStateChanged
         };
 
-        // File Upload Helper (Cloud)
         window.uploadFileToFirebase = async function(file) {
           if(!window.FB || !window.FB.storage) throw new Error('Firebase not ready');
           const user = window.FB.auth.currentUser || { uid: 'anonymous' };
@@ -121,11 +146,8 @@
           return await window.FB.getDownloadURL(storageRef);
         };
 
-        // Sync Logic
         window.FB.onAuthStateChanged(auth, async (user) => {
-          if(user) {
-             console.debug('UXMate: Cloud Sync Active for:', user.uid);
-          }
+          if(user) console.debug('UXMate: Cloud Sync Active for:', user.uid);
         });
 
         console.log('UXMate: Firebase Initialized Successfully');
@@ -136,7 +158,6 @@
       }
     };
 
-    // Attempt Init
     window.initFirebaseIfNeeded(FIREBASE_CONFIG_PLACEHOLDER);
   </script>
 
@@ -156,42 +177,24 @@
   
   <!-- Service Worker Registration -->
   <script>
-    // Safe service worker registration (guarded for Studio preview / cross-origin environments)
     (function registerServiceWorkerSafely(){
-      if (!('serviceWorker' in navigator)) {
-        console.debug('ServiceWorker not supported in this browser.');
-        return;
-      }
-
-      // Only register on secure origins or localhost
+      if (!('serviceWorker' in navigator)) return;
       const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
       const isSecure = location.protocol === 'https:';
-      if (!isSecure && !isLocalhost) {
-        console.debug('Skipping SW registration: not HTTPS or localhost.');
-        return;
-      }
+      if (!isSecure && !isLocalhost) return;
 
-      // Ensure sw.js is same-origin and reachable via a simple fetch probe
-      const swUrl = './sw.js'; // use relative path to ensure same-origin
+      const swUrl = './sw.js';
       fetch(swUrl, { method: 'HEAD', cache: 'no-store' })
         .then(resp => {
-          // success status indicates we can register the SW from same origin
-          if (!resp.ok) throw new Error('sw.js not reachable (status ' + resp.status + ')');
+          if (!resp.ok) throw new Error('sw.js not reachable');
           return navigator.serviceWorker.register(swUrl);
         })
-        .then(reg => {
-          console.debug('ServiceWorker registered:', reg.scope);
-        })
-        .catch(err => {
-          // Common in Studio preview — avoid spamming user with errors
-          console.warn('SW registration skipped or failed:', err && err.message ? err.message : err);
-        });
+        .catch(err => console.warn('SW registration skipped:', err));
     })();
   </script>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-900 overflow-x-hidden">
   <div id="root"></div>
-  <!-- Use Babel to compile TSX on the fly for local usage -->
   <script type="text/babel" data-type="module" src="index.tsx"></script>
 </body>
 </html>

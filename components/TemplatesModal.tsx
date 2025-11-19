@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { TEMPLATES, RichTemplate } from '../constants';
 import { Button } from './ui/Button';
@@ -79,7 +78,6 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({ isOpen, onClose,
 
   const handleFillExample = () => {
     if (!selectedTemplate) return;
-    // Attempt to parse example to find values (simple heuristic) OR just use dummy data based on keys
     const dummyData: Record<string, string> = {
       name: 'Sarah',
       role: 'Product Designer',
@@ -121,7 +119,6 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({ isOpen, onClose,
   };
 
   const handleInsertFinal = (rawContent: string, template: RichTemplate, type: 'block' | 'plain') => {
-    // Replace variables
     let finalContent = rawContent;
     Object.entries(variables).forEach(([key, val]) => {
       const replacement = (val as string).trim() || `[${key}]`;
@@ -132,19 +129,18 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({ isOpen, onClose,
     const timestamp = new Date().toLocaleString();
     
     if (type === 'block') {
-      // HTML Block structure
       const block = `
-<hr class="my-4 border-white/10" />
-<details open class="group bg-black/20 border border-white/10 rounded-lg overflow-hidden">
-<summary class="cursor-pointer p-3 font-bold bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-between outline-none focus:bg-white/10">
-  <span>📄 ${template.label}</span>
-  <span class="text-[10px] font-normal text-muted uppercase tracking-widest opacity-70">${timestamp}</span>
+<hr class="my-4 border-gray-200" />
+<details open class="group bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
+<summary class="cursor-pointer p-3 font-bold bg-white hover:bg-slate-50 transition-colors flex items-center justify-between outline-none focus:bg-slate-50">
+  <span class="text-slate-800">📄 ${template.label}</span>
+  <span class="text-[10px] font-normal text-slate-400 uppercase tracking-widest opacity-70">${timestamp}</span>
 </summary>
-<div class="p-4 text-gray-300 whitespace-pre-wrap leading-relaxed">
+<div class="p-4 text-slate-700 whitespace-pre-wrap leading-relaxed">
 ${finalContent}
 </div>
 </details>
-<hr class="my-4 border-white/10" />
+<hr class="my-4 border-gray-200" />
 `;
       onInsert(block);
     } else {
@@ -156,24 +152,24 @@ ${finalContent}
   // RENDER: VARIABLE INPUT STEP
   if (step === 'variables' && selectedTemplate) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div className="bg-surface border border-white/10 w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
-          <div className="p-5 border-b border-white/5 flex justify-between items-center">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="p-5 border-b border-slate-100 flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-bold text-white">Customize Template</h2>
-              <p className="text-xs text-muted">Fill in the placeholders for <strong>{selectedTemplate.label}</strong></p>
+              <h2 className="text-xl font-bold text-slate-900">Customize Template</h2>
+              <p className="text-xs text-slate-500">Fill in the placeholders for <strong>{selectedTemplate.label}</strong></p>
             </div>
-            <button onClick={() => setStep('list')} className="text-muted hover:text-white"><IconClose className="w-5 h-5" /></button>
+            <button onClick={() => setStep('list')} className="text-slate-400 hover:text-slate-900"><IconClose className="w-5 h-5" /></button>
           </div>
           
           <div className="p-6 overflow-y-auto flex-1">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                {Object.keys(variables).map(key => (
                  <div key={key}>
-                   <label className="block text-xs uppercase font-bold text-muted mb-1 tracking-wide">{key.replace(/([A-Z])/g, ' $1').trim()}</label>
+                   <label className="block text-xs uppercase font-bold text-slate-500 mb-1 tracking-wide">{key.replace(/([A-Z])/g, ' $1').trim()}</label>
                    <input 
                      type="text" 
-                     className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-accent outline-none focus:ring-1 focus:ring-accent transition-all"
+                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:border-blue-500 outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                      placeholder={`Enter ${key}...`}
                      value={variables[key]}
                      onChange={e => setVariables({...variables, [key]: e.target.value})}
@@ -183,13 +179,13 @@ ${finalContent}
                ))}
              </div>
              <div className="mt-6 flex justify-end">
-                <Button variant="ghost" size="sm" onClick={handleFillExample} className="text-accent hover:bg-accent/10">
+                <Button variant="ghost" size="sm" onClick={handleFillExample} className="text-blue-600 hover:bg-blue-50">
                    <IconBeaker className="w-4 h-4 mr-2" /> Fill with Example Data
                 </Button>
              </div>
           </div>
 
-          <div className="p-5 border-t border-white/5 bg-black/20 flex justify-between items-center">
+          <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
             <Button variant="ghost" onClick={() => setStep('list')}>Back</Button>
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => handleInsertFinal(selectedTemplate.content, selectedTemplate, 'plain')}>
@@ -209,19 +205,19 @@ ${finalContent}
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" role="dialog" aria-modal="true">
-      <div className="bg-surface border border-white/10 w-full max-w-5xl rounded-xl shadow-2xl flex flex-col h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true">
+      <div className="bg-white border border-slate-200 w-full max-w-5xl rounded-xl shadow-2xl flex flex-col h-[85vh]">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-white/5">
+        <div className="flex items-center justify-between p-5 border-b border-slate-100">
           <div>
-             <h2 className="text-xl font-bold text-white">Template Library</h2>
-             <p className="text-xs text-muted">Accelerate your workflow with structured guides.</p>
+             <h2 className="text-xl font-bold text-slate-900">Template Library</h2>
+             <p className="text-xs text-slate-500">Accelerate your workflow with structured guides.</p>
           </div>
           <button 
             ref={closeBtnRef}
             onClick={onClose} 
-            className="text-muted hover:text-white p-2 rounded-full hover:bg-white/5 transition-colors"
+            className="text-slate-400 hover:text-slate-900 p-2 rounded-full hover:bg-slate-100 transition-colors"
           >
             <IconClose className="w-6 h-6" />
           </button>
@@ -229,16 +225,16 @@ ${finalContent}
 
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
-          <div className="w-48 border-r border-white/5 bg-black/20 p-4 space-y-1 overflow-y-auto hidden md:block">
-            <h3 className="text-xs font-bold text-muted uppercase mb-2 tracking-wide">Categories</h3>
+          <div className="w-48 border-r border-slate-100 bg-slate-50 p-4 space-y-1 overflow-y-auto hidden md:block">
+            <h3 className="text-xs font-bold text-slate-400 uppercase mb-2 tracking-wide">Categories</h3>
             {categories.map(cat => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeCategory === cat 
-                    ? 'bg-accent text-surface' 
-                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900'
                 }`}
               >
                 {cat}
@@ -247,60 +243,60 @@ ${finalContent}
           </div>
 
           {/* Content */}
-          <div className="flex-1 flex flex-col bg-surface">
-            <div className="p-4 border-b border-white/5 flex gap-3 bg-surface z-10">
+          <div className="flex-1 flex flex-col bg-white">
+            <div className="p-4 border-b border-slate-100 flex gap-3 bg-white z-10">
               <div className="relative flex-1">
-                <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input 
                   type="text" 
                   placeholder="Search templates..." 
-                  className="w-full bg-black/20 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-accent"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                 />
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 bg-[#161b22]">
+            <div className="flex-1 overflow-y-auto p-5 bg-slate-50/50">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {filteredTemplates.map(t => {
                    const isSampleOpen = showingSampleId === t.key;
                    return (
-                    <div key={t.key} className="bg-surface border border-white/5 rounded-xl p-4 hover:border-accent/50 transition-all flex flex-col group">
+                    <div key={t.key} className="bg-white border border-slate-200 rounded-xl p-4 hover:border-blue-300 transition-all flex flex-col group shadow-sm">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-gray-100">{t.label}</h3>
-                          <span className="text-[10px] bg-white/5 text-muted px-2 py-0.5 rounded-full border border-white/5 uppercase">{t.category}</span>
+                          <h3 className="font-bold text-slate-800">{t.label}</h3>
+                          <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200 uppercase">{t.category}</span>
                         </div>
                       </div>
                       
-                      <p className="text-sm text-gray-400 mb-3">{t.desc}</p>
+                      <p className="text-sm text-slate-500 mb-3">{t.desc}</p>
                       
                       {/* Tags */}
                       <div className="flex flex-wrap gap-2 mb-4">
                         {t.tags?.map(tag => (
-                          <span key={tag} className="inline-flex items-center text-[10px] text-gray-500">
+                          <span key={tag} className="inline-flex items-center text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">
                              <IconTag className="w-3 h-3 mr-1 opacity-50" /> {tag}
                           </span>
                         ))}
                       </div>
 
                       {/* Preview / Sample Area */}
-                      <div className="mt-auto bg-black/20 rounded-lg border border-white/5 overflow-hidden">
-                        <div className="p-3 text-xs text-gray-400 font-mono leading-relaxed border-b border-white/5 relative">
+                      <div className="mt-auto bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                        <div className="p-3 text-xs text-slate-500 font-mono leading-relaxed border-b border-slate-200 relative">
                            {isSampleOpen ? (
-                             <div className="whitespace-pre-wrap text-gray-300">{t.example}</div>
+                             <div className="whitespace-pre-wrap text-slate-700">{t.example}</div>
                            ) : (
                              <div className="line-clamp-3 opacity-70">{t.preview}</div>
                            )}
                            <button 
                              onClick={() => setShowingSampleId(isSampleOpen ? null : t.key)}
-                             className="absolute top-2 right-2 text-[10px] flex items-center gap-1 bg-surface border border-white/10 px-2 py-1 rounded hover:text-white transition-colors"
+                             className="absolute top-2 right-2 text-[10px] flex items-center gap-1 bg-white border border-slate-200 px-2 py-1 rounded hover:text-blue-600 transition-colors"
                            >
                              <IconBeaker className="w-3 h-3" /> {isSampleOpen ? 'Hide Sample' : 'View Sample'}
                            </button>
                         </div>
-                        <div className="p-2 bg-white/5 flex gap-2">
+                        <div className="p-2 bg-white flex gap-2">
                           <Button 
                             size="sm" 
                             className="w-full justify-center" 
@@ -315,7 +311,7 @@ ${finalContent}
                 })}
               </div>
               {filteredTemplates.length === 0 && (
-                <div className="h-full flex items-center justify-center text-muted opacity-50">No templates found.</div>
+                <div className="h-full flex items-center justify-center text-slate-400 opacity-50">No templates found.</div>
               )}
             </div>
           </div>

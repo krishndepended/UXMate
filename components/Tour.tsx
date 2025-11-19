@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { Button } from './ui/Button';
 import { IconClose } from './ui/Icons';
@@ -41,7 +40,6 @@ export const Tour: React.FC = () => {
   useEffect(() => {
     const isDone = localStorage.getItem(TOUR_KEY);
     if (!isDone) {
-      // Wait a moment for initial render
       const timer = setTimeout(() => setIsActive(true), 1000);
       return () => clearTimeout(timer);
     }
@@ -57,34 +55,26 @@ export const Tour: React.FC = () => {
       const isLeftHalf = rect.left < window.innerWidth / 2;
       const isTopHalf = rect.top < window.innerHeight / 2;
       
-      // Simple positioning logic
-      // On mobile, fallback to fixed center bottom?
-      // For now, let's try to position floating near element
-      
       let top = rect.bottom + 10;
       let left = rect.left;
       let align: 'left' | 'right' | 'center' = 'left';
 
       if (!isLeftHalf) {
-        left = rect.right - 300; // Approx width
+        left = rect.right - 300;
         align = 'right';
         if (left < 10) left = 10;
       }
 
-      // If element is near bottom, show above
       if (!isTopHalf && rect.bottom > window.innerHeight - 150) {
-        top = rect.top - 180; // Move above
+        top = rect.top - 180; 
       }
       
-      // Mobile override: always center bottom
       if (window.innerWidth < 768) {
         setCoords({ top: window.innerHeight - 220, left: 10, align: 'center' });
       } else {
         setCoords({ top, left, align });
       }
     } else {
-      // Element not found (maybe hidden), skip step or show centered?
-      // Let's just show centered fallback
       setCoords({ top: window.innerHeight / 2 - 100, left: window.innerWidth / 2 - 160, align: 'center' });
     }
   };
@@ -119,30 +109,28 @@ export const Tour: React.FC = () => {
 
   return (
     <>
-      {/* Overlay / Spotlight effect (optional, simple dim) */}
-      <div className="fixed inset-0 bg-black/20 z-[90] pointer-events-none" />
+      <div className="fixed inset-0 bg-slate-900/30 z-[90] pointer-events-none" />
 
-      {/* Tooltip Card */}
       <div 
-        className={`fixed z-[100] bg-surface border border-accent/50 shadow-2xl rounded-xl p-5 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200 ${widthClass}`}
+        className={`fixed z-[100] bg-white border border-blue-200 shadow-2xl rounded-xl p-5 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200 ${widthClass}`}
         style={{ 
           top: coords.top, 
           left: coords.left,
         }}
       >
         <div className="flex justify-between items-start">
-          <h3 className="font-bold text-white text-lg">{currentStep.title}</h3>
-          <button onClick={handleSkip} className="text-muted hover:text-white">
+          <h3 className="font-bold text-slate-900 text-lg">{currentStep.title}</h3>
+          <button onClick={handleSkip} className="text-slate-400 hover:text-slate-900">
             <IconClose className="w-5 h-5" />
           </button>
         </div>
         
-        <p className="text-sm text-gray-300 leading-relaxed">
+        <p className="text-sm text-slate-600 leading-relaxed">
           {currentStep.content}
         </p>
 
-        <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/10">
-          <div className="text-xs text-muted">
+        <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
+          <div className="text-xs text-slate-500">
             Step {stepIndex + 1} of {STEPS.length}
           </div>
           <div className="flex gap-2">
@@ -153,8 +141,7 @@ export const Tour: React.FC = () => {
           </div>
         </div>
         
-        {/* Arrow (Decorative) - rough placement */}
-        <div className={`absolute w-4 h-4 bg-surface border-t border-l border-accent/50 transform rotate-45 -top-2 ${coords.align === 'right' ? 'right-6' : 'left-6'} ${coords.align === 'center' ? 'hidden' : ''}`} />
+        <div className={`absolute w-4 h-4 bg-white border-t border-l border-blue-200 transform rotate-45 -top-2 ${coords.align === 'right' ? 'right-6' : 'left-6'} ${coords.align === 'center' ? 'hidden' : ''}`} />
       </div>
     </>
   );

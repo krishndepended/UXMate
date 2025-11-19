@@ -1,4 +1,3 @@
-
 import React, { ButtonHTMLAttributes, forwardRef } from 'react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -13,20 +12,19 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   className = '', 
   ...props 
 }, ref) => {
-  // Added min-h-[44px] for touch targets on mobile for accessible interactions
-  // Added active:scale-95 for better tap feedback
-  const baseStyles = "inline-flex items-center justify-center font-semibold rounded-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 touch-manipulation";
+  const baseStyles = "inline-flex items-center justify-center font-semibold rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 touch-manipulation tracking-wide";
   
   const variants = {
-    primary: "bg-accent text-surface hover:bg-blue-400 active:bg-blue-500 shadow-sm",
-    ghost: "bg-transparent text-muted hover:bg-white/5 hover:text-white border border-transparent hover:border-white/5",
-    outline: "bg-transparent border border-white/10 text-muted hover:border-white/20 hover:text-white",
-    danger: "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20"
+    primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow",
+    ghost: "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+    outline: "bg-transparent border border-slate-300 text-slate-700 hover:border-slate-400 hover:bg-slate-50",
+    danger: "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
   };
 
   const sizes = {
-    sm: "text-xs px-3 py-2 min-h-[32px] md:min-h-0", // Slightly larger touch area on mobile
-    md: "text-sm px-4 py-3 md:py-2 min-h-[44px] md:min-h-[38px]", // Ensure 44px height on mobile
+    // Mobile-first: Ensure min-height is 44px for touch targets
+    sm: "text-xs px-3 py-1.5 min-h-[44px] md:min-h-[32px]",
+    md: "text-sm px-4 py-2 min-h-[44px] md:min-h-[38px]", 
     lg: "text-base px-6 py-3 min-h-[48px]"
   };
 

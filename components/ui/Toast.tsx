@@ -18,8 +18,8 @@ export const Toast: React.FC<ToastProps> = ({ message, type = 'info', onUndo, on
 
   const bgColors = {
     success: 'bg-emerald-600',
-    info: 'bg-accent',
-    error: 'bg-red-500'
+    info: 'bg-blue-600',
+    error: 'bg-red-600'
   };
 
   // Determine ARIA role based on type

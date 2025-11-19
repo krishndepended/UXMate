@@ -25,7 +25,8 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
         className="transform -rotate-90"
       >
         <circle
-          stroke="rgba(255,255,255,0.1)"
+          stroke="currentColor"
+          strokeOpacity="0.1"
           strokeWidth={stroke}
           fill="transparent"
           r={normalizedRadius}
@@ -42,10 +43,9 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
           r={normalizedRadius}
           cx={radius}
           cy={radius}
-          className="text-accent"
         />
       </svg>
-      <div className="absolute text-[10px] font-bold text-accent">
+      <div className="absolute text-[10px] font-bold">
         {Math.round(progress)}%
       </div>
     </div>

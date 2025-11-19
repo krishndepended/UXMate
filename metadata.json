@@ -1,5 +1,6 @@
 {
   "name": "UXMate — Project Coach",
   "description": "A comprehensive UX project management tool to guide designers through the 12-step design process, manage assets, and export portfolio-ready case studies.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "theme-color": "#f8fafc"
 }
