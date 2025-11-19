@@ -6,7 +6,6 @@ import { STAGES } from '../constants';
 import { Button } from './ui/Button';
 import { IconDownload, IconTrash, IconFile, IconEdit, IconReplace, IconHistory } from './ui/Icons';
 import { ProgressRing } from './ui/ProgressRing';
-import { downloadCaseStudy, exportCaseToPDF } from '../utils/exporter';
 import { AssetCard } from './ui/AssetCard';
 import { ContextMenu } from './ui/ContextMenu';
 import { HistoryModal } from './HistoryModal';
@@ -20,6 +19,7 @@ interface WorkspaceProps {
   onReplaceAsset: (index: number, file: File) => void;
   openTemplates: () => void;
   clearProjectData: () => void;
+  onExport: (project: Project) => void;
 }
 
 export const Workspace: React.FC<WorkspaceProps> = ({
@@ -30,7 +30,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   deleteAsset,
   onReplaceAsset,
   openTemplates,
-  clearProjectData
+  clearProjectData,
+  onExport
 }) => {
   const [notes, setNotes] = useState('');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'idle' | 'modified'>('idle');
@@ -253,19 +254,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             <IconHistory className="w-4 h-4 mr-1" /> History
           </Button>
           <Button 
-            className="bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/10"
-            onClick={() => exportCaseToPDF(project)}
-            aria-label="Export project as PDF"
-          >
-            Export PDF
-          </Button>
-          <Button 
             id="tour-export"
-            className="bg-gradient-to-r from-success to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-surface font-bold shadow-lg shadow-emerald-900/20 border-0"
-            onClick={() => downloadCaseStudy(project)}
-            aria-label="Export project as HTML Case Study"
+            className="bg-gradient-to-r from-accent to-blue-600 hover:from-blue-400 hover:to-blue-500 text-surface font-bold shadow-lg shadow-blue-900/20 border-0"
+            onClick={() => onExport(project)}
+            aria-label="Open export options"
           >
-            <IconDownload className="w-4 h-4" aria-hidden="true" /> Export HTML
+            <IconDownload className="w-4 h-4" aria-hidden="true" /> Export
           </Button>
         </div>
       </div>

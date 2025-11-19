@@ -13,11 +13,6 @@ function escapeHtml(s: string) {
 function renderNotesHtml(notes: string): string {
   if (!notes) return 'No notes added.';
   
-  // If the user used the "Insert as Block" feature, the text contains HTML tags <details>...
-  // We want to render those tags, but escape everything else.
-  
-  // Strategy: Split by the known HTML tags we want to preserve.
-  // This is a simple regex approach.
   const parts = notes.split(/(<\/?details(?: open)?>|<\/?summary>)/g);
   
   return parts.map(part => {
@@ -30,19 +25,28 @@ function renderNotesHtml(notes: string): string {
 }
 
 // Shared HTML generator for both Web Export and PDF Export
-function getCaseStudyBodyHtml(project: Project): string {
+function getCaseStudyBodyHtml(project: Project, includeAssets: boolean = true): string {
   const assetsHtml = (project.assets || []).map(a => {
     const displayUrl = a.url || a.dataURL;
-    // Note: crossOrigin="anonymous" is important for html2canvas/html2pdf to handle CORS images
-    return `
-    <div style="margin: 20px 0; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; page-break-inside: avoid; background: #fff;">
-      <div style="font-weight:700; margin-bottom: 10px; color: #111; font-size: 14px;">${escapeHtml(a.name)}</div>
-      ${a.type.startsWith('image') && displayUrl
-        ? `<img src="${displayUrl}" style="max-width:100%; max-height: 500px; height:auto; border-radius:6px; display: block; margin: 0 auto;" alt="${escapeHtml(a.name)}" crossorigin="anonymous" />` 
-        : `<div style="padding: 15px; background: #f9fafb; border-radius: 6px; color: #4b5563; text-align: center; border: 1px dashed #d1d5db;">File: ${escapeHtml(a.name)} ${a.url ? `<br/><a href="${a.url}" target="_blank" style="color: #2563eb; text-decoration: none; font-size: 12px;">(Download Link)</a>` : ''}</div>`
-      }
-    </div>
-  `;
+    const isImage = a.type.startsWith('image');
+
+    if (includeAssets && isImage && displayUrl) {
+       return `
+      <div style="margin: 20px 0; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; page-break-inside: avoid; background: #fff;">
+        <div style="font-weight:700; margin-bottom: 10px; color: #111; font-size: 14px;">${escapeHtml(a.name)}</div>
+        <img src="${displayUrl}" style="max-width:100%; max-height: 500px; height:auto; border-radius:6px; display: block; margin: 0 auto;" alt="${escapeHtml(a.name)}" crossorigin="anonymous" />
+      </div>
+    `;
+    } else {
+       return `
+       <div style="margin: 10px 0; padding: 15px; background: #f9fafb; border-radius: 6px; color: #4b5563; border: 1px dashed #d1d5db; page-break-inside: avoid;">
+          <div style="font-weight:600; font-size: 14px; color: #1f2937;">${escapeHtml(a.name)}</div>
+          <div style="font-size: 12px; margin-top: 4px;">Type: ${a.type} ${a.size ? `(${Math.round(a.size/1024)}KB)` : ''}</div>
+          ${a.url ? `<div style="margin-top:4px;"><a href="${a.url}" target="_blank" style="color: #2563eb; text-decoration: none; font-size: 12px;">Download / View Link</a></div>` : ''}
+          ${!includeAssets && isImage ? '<div style="font-size:11px; color:#9ca3af; margin-top:2px;">(Image omitted from export)</div>' : ''}
+       </div>
+       `;
+    }
   }).join('');
 
   const stagesList = Object.entries(project.stages).map(([k, v]) => 
@@ -51,17 +55,10 @@ function getCaseStudyBodyHtml(project: Project): string {
     </li>`
   ).join('');
 
-  // Use white-space: pre-wrap for the text parts to preserve newlines, 
-  // but we need to be careful because we are now injecting HTML tags.
-  // We will wrap the whole thing in a div with pre-wrap, but the <details> tags should default to block.
-  // Actually, <details> inside pre-wrap might look odd if indentation exists. 
-  // Let's use a div container and manage whitespace via CSS on the text parts only? 
-  // Simpler: just use white-space: pre-wrap on the container, browsers handle <details> okay usually.
-  
   const notesHtml = renderNotesHtml(project.notes);
 
   return `
-    <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; background: #ffffff; padding: 40px;">
+    <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; background: #ffffff; padding: 40px; max-width: 800px; margin: 0 auto;">
       <h1 style="border-bottom: 2px solid #e5e7eb; padding-bottom: 12px; margin-bottom: 16px; color: #111827; font-size: 28px; font-weight: 800;">${escapeHtml(project.title)}</h1>
       
       <div style="color: #6b7280; font-size: 14px; margin-bottom: 32px;">
@@ -88,16 +85,18 @@ function getCaseStudyBodyHtml(project: Project): string {
   `;
 }
 
-export function downloadCaseStudy(project: Project) {
-  const bodyContent = getCaseStudyBodyHtml(project);
-  const htmlContent = `<!doctype html>
+export function generateFullHtml(project: Project, includeAssets: boolean = true): string {
+  const bodyContent = getCaseStudyBodyHtml(project, includeAssets);
+  return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(project.title)} — Case Study</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; max-width: 800px; margin: 0 auto; padding: 40px 20px; background: #ffffff; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; margin: 0; padding: 0; background: #f3f4f6; }
+    /* Ensure white background for printing/pdf */
+    @media print { body { background: #ffffff; } }
     img { display: block; margin: 0 auto; }
     details { margin: 10px 0; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; background: #fff; }
     summary { font-weight: 600; cursor: pointer; color: #2563eb; outline: none; }
@@ -108,7 +107,10 @@ export function downloadCaseStudy(project: Project) {
   ${bodyContent}
 </body>
 </html>`;
+}
 
+export function downloadCaseStudy(project: Project, includeAssets: boolean = true) {
+  const htmlContent = generateFullHtml(project, includeAssets);
   const blob = new Blob([htmlContent], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -120,42 +122,77 @@ export function downloadCaseStudy(project: Project) {
   URL.revokeObjectURL(url);
 }
 
-export async function exportCaseToPDF(project: Project) {
+export async function exportCaseToPDF(
+  project: Project, 
+  includeAssets: boolean = true,
+  onProgress?: (status: string, progress: number) => void
+) {
   if (!window.html2pdf) {
     alert('PDF library (html2pdf) is not loaded. Check your internet connection.');
     return;
   }
 
+  onProgress?.('Preparing content...', 10);
+
   // Create a temporary container for the PDF content
   const container = document.createElement('div');
-  // Fix: Positioning needs to be on-screen for html2canvas to render it properly, 
-  // but we can hide it behind everything with z-index.
-  container.style.position = 'absolute';
-  container.style.top = '0';
+  container.style.position = 'fixed';
+  container.style.top = '-10000px'; // Hide off-screen
   container.style.left = '0';
   container.style.width = '800px'; // Fixed width for predictable A4 scaling
   container.style.zIndex = '-9999'; 
   container.style.backgroundColor = '#ffffff';
-  // Avoid visibility:hidden or display:none as it stops rendering
   
   // Inject content
-  container.innerHTML = getCaseStudyBodyHtml(project);
+  container.innerHTML = getCaseStudyBodyHtml(project, includeAssets);
   document.body.appendChild(container);
 
-  // Helper: Wait for images to load
-  const images = Array.from(container.querySelectorAll('img'));
-  const promises = images.map(img => {
-    if (img.complete) return Promise.resolve();
-    return new Promise(resolve => {
-      img.onload = resolve;
-      img.onerror = resolve; // resolve anyway to continue
-    });
-  });
-
   try {
-    await Promise.all(promises);
+    // Wait for images to load if any
+    const images = Array.from(container.querySelectorAll('img'));
+    const total = images.length;
+    
+    if (total > 0) {
+        onProgress?.(`Loading ${total} images...`, 20);
+        let loaded = 0;
+        const promises = images.map(img => {
+            if (img.complete) {
+                loaded++;
+                onProgress?.(`Loading images (${loaded}/${total})...`, 20 + (loaded/total * 30));
+                return Promise.resolve();
+            }
+            return new Promise<void>(resolve => {
+                img.onload = () => {
+                    loaded++;
+                    onProgress?.(`Loading images (${loaded}/${total})...`, 20 + (loaded/total * 30));
+                    resolve();
+                };
+                img.onerror = () => {
+                    // Handle broken images
+                    const errPlaceholder = document.createElement('div');
+                    errPlaceholder.style.padding = '20px';
+                    errPlaceholder.style.color = '#ef4444';
+                    errPlaceholder.style.background = '#fef2f2';
+                    errPlaceholder.style.textAlign = 'center';
+                    errPlaceholder.style.border = '1px dashed #fca5a5';
+                    errPlaceholder.textContent = `Image failed to load`;
+                    img.parentNode?.replaceChild(errPlaceholder, img);
+                    
+                    loaded++;
+                    onProgress?.(`Loading images (${loaded}/${total})...`, 20 + (loaded/total * 30));
+                    resolve();
+                };
+            });
+        });
+        await Promise.all(promises);
+    } else {
+        onProgress?.('No images to load...', 50);
+    }
+
     // Small delay to ensure layout is stable
     await new Promise(resolve => setTimeout(resolve, 500));
+    
+    onProgress?.('Generating PDF pages...', 60);
 
     // html2pdf options
     const opt = {
@@ -166,7 +203,11 @@ export async function exportCaseToPDF(project: Project) {
       jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
+    // We can't easily track progress inside html2pdf save(), so we jump to near-end
     await window.html2pdf().set(opt).from(container).save();
+    
+    onProgress?.('Finalizing...', 100);
+
   } catch (err) {
     console.error('PDF Generation Error:', err);
     alert('Failed to generate PDF. Please check console for details.');

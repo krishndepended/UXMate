@@ -7,6 +7,7 @@ import { Workspace } from './components/Workspace';
 import { TemplatesModal } from './components/TemplatesModal';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { ConfirmModal } from './components/ConfirmModal';
+import { ExportModal } from './components/ExportModal';
 import { Toast, ToastProps } from './components/ui/Toast';
 import { Tour } from './components/Tour';
 
@@ -29,6 +30,7 @@ const App: React.FC = () => {
 
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [exportProject, setExportProject] = useState<Project | null>(null);
   const [fbReady, setFbReady] = useState(false);
   
   // Toast State
@@ -441,6 +443,10 @@ const App: React.FC = () => {
     });
   };
 
+  const handleOpenExport = (project: Project) => {
+    setExportProject(project);
+  };
+
   return (
     <div className="min-h-screen bg-background text-gray-100 flex flex-col font-sans selection:bg-accent selection:text-surface">
       <header className="h-16 border-b border-white/5 bg-surface/50 backdrop-blur flex items-center px-6 sticky top-0 z-40">
@@ -476,6 +482,7 @@ const App: React.FC = () => {
           markAllStages={markAllStages}
           resetStages={resetStages}
           onUploadAsset={handleAssetUpload}
+          onExport={handleOpenExport}
         />
         <Workspace 
           project={activeProject}
@@ -486,6 +493,7 @@ const App: React.FC = () => {
           onReplaceAsset={handleReplaceAsset}
           openTemplates={() => setIsTemplatesOpen(true)}
           clearProjectData={clearProjectData}
+          onExport={handleOpenExport}
         />
       </div>
 
@@ -502,6 +510,12 @@ const App: React.FC = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={handleCreateProject}
+      />
+
+      <ExportModal 
+        project={exportProject}
+        isOpen={!!exportProject}
+        onClose={() => setExportProject(null)}
       />
 
       <ConfirmModal

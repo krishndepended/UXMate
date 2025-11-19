@@ -4,7 +4,6 @@ import { Project, AppState } from '../types';
 import { STAGES } from '../constants';
 import { Button } from './ui/Button';
 import { IconPlus, IconCheck, IconTrash, IconFile, IconSearch, IconCopy, IconDownload, IconChevronDown, IconRefresh, IconCheckCircle } from './ui/Icons';
-import { downloadCaseStudy } from '../utils/exporter';
 
 interface SidebarProps {
   state: AppState;
@@ -17,6 +16,7 @@ interface SidebarProps {
   markAllStages: () => void;
   resetStages: () => void;
   onUploadAsset: (file: File) => void;
+  onExport: (project: Project) => void;
   activeProject: Project | null;
 }
 
@@ -31,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   markAllStages,
   resetStages,
   onUploadAsset,
+  onExport,
   activeProject
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -172,9 +173,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       className="text-muted hover:text-white p-1.5 rounded hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                       onClick={(e) => { 
                         e.stopPropagation(); 
-                        downloadCaseStudy(p);
+                        onExport(p);
                       }}
-                      title="Export HTML"
+                      title="Export"
                       aria-label="Export project"
                     >
                       <IconDownload className="w-3.5 h-3.5" />
