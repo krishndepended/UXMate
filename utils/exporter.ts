@@ -1,4 +1,3 @@
-
 import { Project } from "../types";
 import { generateCaseStudyHtml } from "./pdfTemplate";
 
@@ -43,11 +42,8 @@ async function inlineImagesInContainer(container: HTMLElement) {
 
 /**
  * Generates a simple HTML string for direct HTML file download (interactive web view).
- * Keeps the old "web" style logic if needed, or reuses the new one.
- * For now, we keep this mapped to the new robust template for consistency.
  */
 export function generateFullHtml(project: Project, includeAssets: boolean = true): string {
-  // The new template is cleaner and works for both web and print
   return generateCaseStudyHtml(project);
 }
 
@@ -55,14 +51,11 @@ export function generateFullHtml(project: Project, includeAssets: boolean = true
  * Generates the printable document, inlines images, and prepares it for the new window.
  */
 export async function generatePrintableDocument(project: Project, includeAssets: boolean): Promise<string> {
-  // 1. Generate the Raw HTML string from the new template
   const rawHtml = generateCaseStudyHtml(project);
 
-  // 2. Create a temporary DOM element to process images
   const parser = new DOMParser();
   const doc = parser.parseFromString(rawHtml, 'text/html');
 
-  // 3. Inline images for robustness in new window / PDF
   if (includeAssets) {
     const images = Array.from(doc.querySelectorAll('img'));
     const promises = images.map(async (img) => {
@@ -94,15 +87,22 @@ export async function exportToPrintable(project: Project, includeAssets: boolean
   const filename = `${(project.title || 'case-study').replace(/[^a-z0-9]/gi, '_')}.html`;
   const htmlContent = await generatePrintableDocument(project, includeAssets);
 
-  // Attempt to open new window
+  // We open with a print query param so the script inside triggers print
   const printWindow = window.open('', '_blank');
   
   if (printWindow) {
     try {
       printWindow.document.open();
       printWindow.document.write(htmlContent);
+      // Manually trigger the print in the window if the script inside doesn't catch it
+      // but adding the script logic to the template is cleaner for mobile web views.
       printWindow.document.close();
-      // The script inside the HTML will trigger window.print() automatically
+      
+      // Inject a manual print trigger just in case
+      setTimeout(() => {
+        if (printWindow.print) printWindow.print();
+      }, 1000);
+      
       return { success: true, method: 'print' };
     } catch (e) {
       console.error('Export: Failed to write to print window', e);
@@ -111,14 +111,12 @@ export async function exportToPrintable(project: Project, includeAssets: boolean
       return { success: false, method: 'download' };
     }
   } else {
-    // Popup blocked
     console.warn('Export: Popup blocked. Falling back to download.');
     downloadAsHtmlFile(htmlContent, filename);
     return { success: true, method: 'download' };
   }
 }
 
-// Alias for the simple HTML download
 export function downloadCaseStudy(project: Project, includeAssets: boolean = true) {
   const htmlContent = generateFullHtml(project, includeAssets);
   const filename = `${(project.title || 'case-study').replace(/[^a-z0-9]/gi, '_')}.html`;

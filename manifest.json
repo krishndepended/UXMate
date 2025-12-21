@@ -1,80 +1,21 @@
 {
-  "name": "UXMate — Project Coach",
   "short_name": "UXMate",
-  "description": "A comprehensive local-first project management tool for UX designers. Manage projects, components, and design systems offline with optional cloud sync.",
-  "start_url": "/",
-  "scope": "/",
+  "name": "UXMate Project Coach",
+  "start_url": "./index.html",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "theme_color": "#3b82f6",
-  "background_color": "#ffffff",
-  "prefer_related_applications": false,
-  "categories": ["productivity", "utilities"],
-  "screenshots": [
-    {
-      "src": "https://via.placeholder.com/540x720/3b82f6/ffffff?text=UXMate+Dashboard",
-      "sizes": "540x720",
-      "form_factor": "narrow",
-      "type": "image/png"
-    },
-    {
-      "src": "https://via.placeholder.com/1280x720/3b82f6/ffffff?text=UXMate+Desktop",
-      "sizes": "1280x720",
-      "form_factor": "wide",
-      "type": "image/png"
-    }
-  ],
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "any",
   "icons": [
     {
-      "src": "./icon-192.png",
-      "sizes": "192x192",
+      "src": "https://via.placeholder.com/192/60a5fa/ffffff?text=UX",
       "type": "image/png",
-      "purpose": "any"
+      "sizes": "192x192"
     },
     {
-      "src": "./icon-192.png",
-      "sizes": "192x192",
+      "src": "https://via.placeholder.com/512/60a5fa/ffffff?text=UX",
       "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "./icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "sizes": "512x512"
     }
-  ],
-  "shortcuts": [
-    {
-      "name": "New Project",
-      "short_name": "New Project",
-      "description": "Create a new UX project",
-      "url": "/?action=new-project",
-      "icons": [
-        {
-          "src": "./icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    }
-  ],
-  "share_target": {
-    "action": "/share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "files": [
-        {
-          "name": "project_file",
-          "accept": ["application/json", ".json"]
-        }
-      ]
-    }
-  }
+  ]
 }

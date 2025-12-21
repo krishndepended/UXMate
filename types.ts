@@ -1,4 +1,3 @@
-
 export interface Asset {
   name: string;
   type: string;
@@ -7,13 +6,26 @@ export interface Asset {
   storagePath?: string; 
   createdAt: string;
   size?: number; 
-  stepId?: string; // Link asset to a specific process step
+  stepId?: string;
+  caption?: string; // New: User editable caption for the export
+}
+
+export interface ExportConfig {
+  theme: 'modern' | 'classic' | 'minimal';
+  primaryColor: string;
+  fontFamily: 'Inter' | 'Serif' | 'Mono';
+  showCover: boolean;
+  showTOC: boolean;
+  showAssets: boolean;
+  designerName: string;
+  designerRole: string;
+  excludedSteps: string[]; // Steps to hide in the final export
 }
 
 export interface ProjectVersion {
   timestamp: string;
-  notes: string; // Legacy global notes
-  stepData?: Record<string, StepData>; // New versioning
+  notes: string;
+  stepData?: Record<string, StepData>;
 }
 
 export interface StepData {
@@ -25,14 +37,15 @@ export interface Project {
   id: string;
   title: string;
   desc: string;
-  notes: string; // Kept for legacy/general notes
-  stages: Record<string, boolean>; // Kept for backward compat, but derived from stepData
-  steps: Record<string, StepData>; // New: Per-step data
+  notes: string;
+  stages: Record<string, boolean>;
+  steps: Record<string, StepData>;
   expandedStages?: Record<string, boolean>; 
   assets: Asset[];
   history?: ProjectVersion[]; 
   createdAt: string;
-  currentStepId?: string; // Tracks user's current location in the process
+  currentStepId?: string;
+  exportConfig?: ExportConfig; // New: Persistent export settings
 }
 
 export interface AppState {
@@ -47,23 +60,4 @@ export interface Template {
   content: string;
   category?: 'Research' | 'Design' | 'Testing' | 'Strategy' | 'Delivery';
   tags?: string[];
-}
-
-declare global {
-  interface Window {
-    FB: {
-      app?: any;
-      auth?: any;
-      storage?: any;
-      firestore?: any;
-      doc?: any;
-      db?: any;
-      setDoc?: any;
-      _initialized?: boolean;
-    };
-    initFirebaseIfNeeded: (config: any) => void;
-    uploadFileToFirebase: (file: File) => Promise<string>;
-    firebase: any;
-    html2pdf: any;
-  }
 }

@@ -1,21 +1,15 @@
-<!-- OPTIMIZED FOR PWABUILDER & APK GENERATION -->
+<!-- REMOVED_AI: removed AI integration - local only -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>UXMate — Project Coach</title>
-  <meta name="description" content="A comprehensive local-first project management tool for UX designers. Manage projects, components, and design systems offline with cloud sync.">
+  <meta name="description" content="A comprehensive UX project management tool.">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="UXMate">
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="./manifest.json">
-  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png">
-  <link rel="apple-touch-icon" href="./icon-192.png">
 
   <!-- Styles & Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -25,12 +19,13 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Inter', 'sans-serif'],
+            sans: ['Inter', 'system-ui', 'sans-serif'],
           },
           boxShadow: {
             'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
             'glow': '0 0 15px rgba(59, 130, 246, 0.5)',
             'fab': '0 8px 30px rgba(37, 99, 235, 0.3)',
+            'sheet': '0 -10px 40px -10px rgba(0, 0, 0, 0.1)',
           },
           borderRadius: {
             'xl': '1rem',
@@ -47,224 +42,71 @@
       color: #0f172a;
       font-family: 'Inter', sans-serif;
       -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: none; /* Prevent pull-to-refresh if possible */
     }
 
-    /* Mobile Spacing Tokens & Typography */
+    /* Mobile Typography Scaling */
     @media (max-width: 768px) {
-      html, body {
-        font-size: 16px; /* Body 16px */
-        line-height: 1.6; /* Increased line-height */
-      }
-
-      /* Headers 18px */
-      h1, h2, h3, h4, .text-xl, .text-2xl, .text-3xl {
-        font-size: 18px !important;
-        line-height: 1.4 !important;
-      }
-
-      /* Ensure text wraps and does not overflow */
-      body {
-        overflow-x: hidden;
-        width: 100%;
-      }
-      
-      p, div, span, h1, h2, h3, li {
-        overflow-wrap: break-word;
-        word-wrap: break-word;
-        hyphens: auto;
-      }
+      h1 { font-size: 1.25rem !important; }
+      h2 { font-size: 1.125rem !important; }
+      .text-base { font-size: 1rem !important; }
+      .text-sm { font-size: 0.875rem !important; }
     }
     
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
-    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     
-    .loader { border: 2px solid #cbd5e1; border-top: 2px solid #3b82f6; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    
-    /* Focus visibility */
-    :focus-visible {
-      outline: 2px solid #3b82f6;
-      outline-offset: 2px;
+    /* Animations */
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .animate-slide-up {
+      animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* Playful Animations */
-    @keyframes pulse-ring {
-      0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.2); }
-      70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
-    }
-    
-    .fab-pulse {
-      animation: pulse-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
-
-    .active-scale:active {
-      transform: scale(0.92);
-      transition: transform 0.1s ease-out;
-    }
-
-    /* Glassmorphism */
-    .glass-nav {
-      background: rgba(255, 255, 255, 0.92);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-    }
-
-    /* Safe Area for iPhone X+ */
     .pb-safe {
       padding-bottom: env(safe-area-inset-bottom, 20px);
     }
-
-    /* Micro-Interactions */
     
-    /* Card Elevation on Hover (Desktop) */
-    @media (min-width: 768px) {
-      .card-hover {
-        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        will-change: transform, box-shadow;
-      }
-      .card-hover:hover, .card-hover:focus-within {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.04);
-        z-index: 1;
-      }
+    .pt-safe {
+      padding-top: env(safe-area-inset-top, 0px);
     }
 
-    /* Touch Ripple for Nav Items */
-    .ripple-tap {
-      position: relative;
-      overflow: hidden;
+    .active-scale:active {
+      transform: scale(0.96);
     }
-    .ripple-tap::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 150%;
-      padding-bottom: 150%;
-      border-radius: 50%;
-      background: rgba(59, 130, 246, 0.1);
-      transform: translate(-50%, -50%) scale(0);
-      opacity: 0;
-      pointer-events: none;
+
+    .glass-nav {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
     }
-    .ripple-tap:active::after {
-      animation: ripple-anim 0.4s ease-out;
+
+    /* Hide scrollbar for clean horizontal lists */
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
     }
-    @keyframes ripple-anim {
-      0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
-      100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
     }
   </style>
 
   <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
-  <!-- Firebase Global Init -->
-  <script type="module">
-    const FIREBASE_CONFIG_PLACEHOLDER = {
-      apiKey: "REPLACE_API_KEY",
-      authDomain: "REPLACE_PROJECT.firebaseapp.com",
-      projectId: "REPLACE_PROJECT_ID",
-      storageBucket: "REPLACE_PROJECT.appspot.com",
-      messagingSenderId: "REPLACE_SENDER_ID",
-      appId: "REPLACE_APP_ID"
-    };
-
-    window.initFirebaseIfNeeded = async function(config) {
-      if(!config || !config.apiKey || config.apiKey.startsWith("REPLACE_")) {
-        console.log('UXMate: Running in Local Mode.');
-        return null;
-      }
-
-      if(window.FB && window.FB._initialized) return window.FB;
-
-      try {
-        console.log('UXMate: Attempting Firebase Connection...');
-        const [{ initializeApp, getApps }, 
-               { getAuth, signInAnonymously, onAuthStateChanged }, 
-               { getFirestore, doc, setDoc, getDoc, onSnapshot },
-               { getStorage, ref, uploadBytes, getDownloadURL }] = await Promise.all([
-          import('https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js').then(m=>[m.initializeApp, m.getApps]),
-          import('https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js'),
-          import('https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js'),
-          import('https://www.gstatic.com/firebasejs/10.6.0/firebase-storage.js')
-        ]);
-
-        const app = (getApps && getApps().length) ? getApps()[0] : initializeApp(config);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
-
-        signInAnonymously(auth).catch(e => console.warn('Firebase Auth failed:', e));
-
-        window.FB = {
-          _initialized: true,
-          app, auth, db, storage,
-          doc, setDoc, getDoc, onSnapshot,
-          ref, uploadBytes, getDownloadURL,
-          onAuthStateChanged
-        };
-
-        window.uploadFileToFirebase = async function(file) {
-          if(!window.FB || !window.FB.storage) throw new Error('Firebase not ready');
-          const user = window.FB.auth.currentUser || { uid: 'anonymous' };
-          const path = `users/${user.uid}/assets/${Date.now()}_${file.name.replace(/\s+/g,'_')}`;
-          const storageRef = window.FB.ref(window.FB.storage, path);
-          await window.FB.uploadBytes(storageRef, file);
-          return await window.FB.getDownloadURL(storageRef);
-        };
-
-        window.FB.onAuthStateChanged(auth, async (user) => {
-          if(user) console.debug('UXMate: Cloud Sync Active for:', user.uid);
-        });
-
-        console.log('UXMate: Firebase Initialized Successfully');
-        return window.FB;
-      } catch(e) {
-        console.warn('UXMate: Firebase init failed. Falling back to Local Mode.', e);
-        return null;
-      }
-    };
-
-    window.initFirebaseIfNeeded(FIREBASE_CONFIG_PLACEHOLDER);
-  </script>
-
-  <!-- React Module Loader -->
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "react-dom": "https://esm.sh/react-dom@18.2.0",
-    "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
   }
 }
 </script>
-  
-  <!-- Service Worker Registration -->
-  <script>
-    (function registerServiceWorkerSafely(){
-      if (!('serviceWorker' in navigator)) return;
-      const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-      const isSecure = location.protocol === 'https:';
-      if (!isSecure && !isLocalhost) return;
-
-      const swUrl = './sw.js';
-      fetch(swUrl, { method: 'HEAD', cache: 'no-store' })
-        .then(resp => {
-          if (!resp.ok) throw new Error('sw.js not reachable');
-          return navigator.serviceWorker.register(swUrl);
-        })
-        .catch(err => console.warn('SW registration skipped:', err));
-    })();
-  </script>
 </head>
 <body class="min-h-screen flex flex-col bg-slate-50 text-slate-900 overflow-x-hidden">
   <div id="root"></div>
