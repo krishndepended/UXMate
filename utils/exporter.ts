@@ -87,21 +87,31 @@ export async function exportToPrintable(project: Project, includeAssets: boolean
   const filename = `${(project.title || 'case-study').replace(/[^a-z0-9]/gi, '_')}.html`;
   const htmlContent = await generatePrintableDocument(project, includeAssets);
 
-  // We open with a print query param so the script inside triggers print
+  // In mobile browsers, window.open is often blocked unless triggered directly by a click.
+  // We attempt it, but provide a robust fallback.
   const printWindow = window.open('', '_blank');
   
   if (printWindow) {
     try {
       printWindow.document.open();
       printWindow.document.write(htmlContent);
-      // Manually trigger the print in the window if the script inside doesn't catch it
-      // but adding the script logic to the template is cleaner for mobile web views.
       printWindow.document.close();
       
-      // Inject a manual print trigger just in case
+      // Wait for images and resources to load before triggering print
+      printWindow.onload = () => {
+        setTimeout(() => {
+          if (printWindow.print) {
+            printWindow.print();
+          }
+        }, 500);
+      };
+      
+      // Fallback for browsers that don't trigger onload for document.write content correctly
       setTimeout(() => {
-        if (printWindow.print) printWindow.print();
-      }, 1000);
+        if (printWindow.document.readyState === 'complete') {
+          if (printWindow.print) printWindow.print();
+        }
+      }, 1500);
       
       return { success: true, method: 'print' };
     } catch (e) {
@@ -111,6 +121,7 @@ export async function exportToPrintable(project: Project, includeAssets: boolean
       return { success: false, method: 'download' };
     }
   } else {
+    // If window.open was blocked, we fallback to direct download immediately.
     console.warn('Export: Popup blocked. Falling back to download.');
     downloadAsHtmlFile(htmlContent, filename);
     return { success: true, method: 'download' };

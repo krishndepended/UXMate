@@ -7,7 +7,14 @@ export interface Asset {
   createdAt: string;
   size?: number; 
   stepId?: string;
-  caption?: string; // New: User editable caption for the export
+  caption?: string;
+}
+
+export interface CustomSection {
+  id: string;
+  title: string;
+  content: string;
+  showAssets: boolean;
 }
 
 export interface ExportConfig {
@@ -19,7 +26,10 @@ export interface ExportConfig {
   showAssets: boolean;
   designerName: string;
   designerRole: string;
-  excludedSteps: string[]; // Steps to hide in the final export
+  excludedSteps: string[];
+  sectionOrder?: string[]; 
+  customOverrides?: Record<string, string>; 
+  customSections?: CustomSection[]; // New: User created sections
 }
 
 export interface ProjectVersion {
@@ -45,7 +55,7 @@ export interface Project {
   history?: ProjectVersion[]; 
   createdAt: string;
   currentStepId?: string;
-  exportConfig?: ExportConfig; // New: Persistent export settings
+  exportConfig?: ExportConfig;
 }
 
 export interface AppState {

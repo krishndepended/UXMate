@@ -1,17 +1,13 @@
-<!-- REMOVED_AI: removed AI integration - local only -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>UXMate — Project Coach</title>
-  <meta name="description" content="A comprehensive UX project management tool.">
-  <meta name="theme-color" content="#3b82f6">
+  <title>UXMate — Design Process Coach</title>
+  <meta name="description" content="A professional UX project management tool for designers.">
+  <meta name="theme-color" content="#f8fafc">
   
-  <!-- PWA Manifest -->
   <link rel="manifest" href="./manifest.json">
-
-  <!-- Styles & Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -22,80 +18,77 @@
             sans: ['Inter', 'system-ui', 'sans-serif'],
           },
           boxShadow: {
-            'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
-            'glow': '0 0 15px rgba(59, 130, 246, 0.5)',
-            'fab': '0 8px 30px rgba(37, 99, 235, 0.3)',
-            'sheet': '0 -10px 40px -10px rgba(0, 0, 0, 0.1)',
+            'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            'glow': '0 0 25px rgba(59, 130, 246, 0.2)',
+            'fab': '0 12px 45px -5px rgba(15, 23, 42, 0.3)',
+            'sheet': '0 -15px 50px -12px rgba(0, 0, 0, 0.15)',
           },
-          borderRadius: {
-            'xl': '1rem',
-            '2xl': '1.5rem',
-            '3xl': '2rem',
+          letterSpacing: {
+            'widest': '0.25em',
+            'tightest': '-0.05em',
+          },
+          spacing: {
+            '18': '4.5rem',
           }
         },
       },
     }
   </script>
   <style>
+    :root {
+      --sat: env(safe-area-inset-top);
+      --sab: env(safe-area-inset-bottom);
+      --sar: env(safe-area-inset-right);
+      --sal: env(safe-area-inset-left);
+    }
+    
     body { 
       background-color: #f8fafc; 
       color: #0f172a;
       font-family: 'Inter', sans-serif;
       -webkit-tap-highlight-color: transparent;
-      overscroll-behavior-y: none; /* Prevent pull-to-refresh if possible */
+      overscroll-behavior: none;
+      height: 100vh;
+      width: 100vw;
+      position: fixed;
+      overflow: hidden;
     }
 
-    /* Mobile Typography Scaling */
-    @media (max-width: 768px) {
-      h1 { font-size: 1.25rem !important; }
-      h2 { font-size: 1.125rem !important; }
-      .text-base { font-size: 1rem !important; }
-      .text-sm { font-size: 0.875rem !important; }
+    #root {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
     }
-    
-    /* Scrollbar Styling */
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
+
+    /* Safe Area Utilities */
+    .pt-safe { padding-top: var(--sat); }
+    .pb-safe { padding-bottom: var(--sab); }
+    .pl-safe { padding-left: var(--sal); }
+    .pr-safe { padding-right: var(--sar); }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+    ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
     
-    /* Animations */
-    @keyframes slideUp {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
-    }
-    .animate-slide-up {
-      animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-    .pb-safe {
-      padding-bottom: env(safe-area-inset-bottom, 20px);
-    }
-    
-    .pt-safe {
-      padding-top: env(safe-area-inset-top, 0px);
-    }
+    /* Animation Utilities */
+    .transition-premium { transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+    .active-scale:active { transform: scale(0.97); }
 
-    .active-scale:active {
-      transform: scale(0.96);
-    }
+    /* Typography Scale */
+    .heading-huge { font-size: clamp(2.5rem, 8vw, 5rem); font-weight: 900; line-height: 1.1; letter-spacing: -0.05em; }
+    .heading-section { font-size: clamp(1.5rem, 5vw, 2.25rem); font-weight: 900; line-height: 1.2; letter-spacing: -0.04em; }
+    .label-caps { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: #64748b; }
+    .body-large { font-size: 1.125rem; line-height: 1.8; color: #334155; }
 
-    .glass-nav {
-      background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-    }
-
-    /* Hide scrollbar for clean horizontal lists */
-    .hide-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    .hide-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
+    /* Layout Hierarchy */
+    .container-spacing { padding: clamp(1rem, 4vw, 2.5rem); }
+    .card-radius { border-radius: clamp(1.5rem, 5vw, 2.5rem); }
   </style>
-
-  <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="importmap">
@@ -108,7 +101,7 @@
 }
 </script>
 </head>
-<body class="min-h-screen flex flex-col bg-slate-50 text-slate-900 overflow-x-hidden">
+<body class="bg-slate-50 text-slate-900">
   <div id="root"></div>
   <script type="text/babel" data-type="module" src="index.tsx"></script>
 </body>

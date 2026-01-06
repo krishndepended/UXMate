@@ -13,6 +13,7 @@ export interface StageDef {
   help: string;
   templateCategory?: string;
   guide?: GuideContent;
+  icon?: string; // Emoji or Icon name for the dashboard
 }
 
 export const STAGES: StageDef[] = [
@@ -22,6 +23,7 @@ export const STAGES: StageDef[] = [
     description: 'Define the core user problem, business goals, and success metrics.',
     help: 'What are we solving? Who is it for? Why does it matter now?',
     templateCategory: 'Strategy',
+    icon: '🎯',
     guide: {
       why: "A well-defined problem is half-solved. Without clarity here, you risk designing a beautiful solution for a problem that doesn't exist.",
       bestPractices: [
@@ -38,6 +40,7 @@ export const STAGES: StageDef[] = [
     description: 'Conduct user interviews, competitive analysis, and surveys.',
     help: 'Gather qualitative and quantitative data to validate assumptions.',
     templateCategory: 'Research',
+    icon: '🔍',
     guide: {
       why: "Research moves you from 'I think' to 'I know'. It builds empathy and ensures your design is grounded in reality.",
       bestPractices: [
@@ -54,6 +57,7 @@ export const STAGES: StageDef[] = [
     description: 'Synthesize research into user personas and empathy maps.',
     help: 'Create a representative character of your target audience.',
     templateCategory: 'Research',
+    icon: '👥',
     guide: {
       why: "Personas serve as a 'North Star' for the team. They prevent 'self-referential design' where designers design for themselves.",
       bestPractices: [
@@ -70,6 +74,7 @@ export const STAGES: StageDef[] = [
     description: 'Map out the current and future state user journeys.',
     help: 'Identify pain points and opportunities across the user timeline.',
     templateCategory: 'Strategy',
+    icon: '🗺️',
     guide: {
       why: "Journey maps visualize the highs and lows of an experience, helping you spot 'moments of truth' where a user is likely to drop off.",
       bestPractices: [
@@ -86,6 +91,7 @@ export const STAGES: StageDef[] = [
     description: 'Brainstorm diverse solutions and sketch rough ideas (Crazy 8s).',
     help: 'Focus on quantity over quality. Explore different approaches.',
     templateCategory: 'Design',
+    icon: '💡',
     guide: {
       why: "Ideation is about divergent thinking. The first idea is rarely the best; sketching many options allows you to explore the edges of the problem space.",
       bestPractices: [
@@ -102,6 +108,7 @@ export const STAGES: StageDef[] = [
     description: 'Define the information architecture, sitemap, and logical flows.',
     help: 'Map the path a user takes to complete a task.',
     templateCategory: 'Design',
+    icon: '🔀',
     guide: {
       why: "Flows ensure the logic of the product is sound. Good IA makes a complex system feel intuitive and easy to navigate.",
       bestPractices: [
@@ -118,6 +125,7 @@ export const STAGES: StageDef[] = [
     description: 'Create structural layouts (Low/Mid-Fi) focusing on functionality.',
     help: 'Layout content without getting distracted by colors or typography.',
     templateCategory: 'Design',
+    icon: '📐',
     guide: {
       why: "Wireframes are the skeleton of your design. Removing color and images forces you to focus on usability, placement, and hierarchy.",
       bestPractices: [
@@ -134,6 +142,7 @@ export const STAGES: StageDef[] = [
     description: 'Apply visual systems, typography, colors, and branding (High-Fi).',
     help: 'Bring the interface to life with the design system.',
     templateCategory: 'Design',
+    icon: '🎨',
     guide: {
       why: "Visual design isn't just decoration; it's communication. It establishes trust, brand identity, and guides attention through visual weight.",
       bestPractices: [
@@ -150,6 +159,7 @@ export const STAGES: StageDef[] = [
     description: 'Build interactive prototypes to simulate the final experience.',
     help: 'Link screens together to test interactions and transitions.',
     templateCategory: 'Testing',
+    icon: '📱',
     guide: {
       why: "Prototypes bring designs to life. They allow you to test micro-interactions and the overall 'feel' before writing a single line of code.",
       bestPractices: [
@@ -166,6 +176,7 @@ export const STAGES: StageDef[] = [
     description: 'Test with real users, observe behavior, and gather feedback.',
     help: 'Validate your solution. Does it actually solve the problem?',
     templateCategory: 'Testing',
+    icon: '🧪',
     guide: {
       why: "Usability testing is the moment of truth. It reveals where your assumptions failed and where users are getting stuck.",
       bestPractices: [
@@ -182,6 +193,7 @@ export const STAGES: StageDef[] = [
     description: 'Refine and improve the design based on testing results.',
     help: 'What changes are needed based on user feedback?',
     templateCategory: 'Testing',
+    icon: '♻️',
     guide: {
       why: "Design is never finished. Iteration is the process of closing the gap between your prototype and a perfect user experience.",
       bestPractices: [
@@ -198,6 +210,7 @@ export const STAGES: StageDef[] = [
     description: 'Compile your process into a portfolio-ready presentation.',
     help: 'Tell the story of your project from problem to solution.',
     templateCategory: 'Delivery',
+    icon: '📄',
     guide: {
       why: "A case study isn't a gallery; it's a story. It proves you have a process and can solve complex business problems with design.",
       bestPractices: [

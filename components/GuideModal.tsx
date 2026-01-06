@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { STAGES, TEMPLATES, RichTemplate } from '../constants';
 import { Button } from './ui/Button';
-import { IconClose, IconBeaker, IconPlus, IconCheck, IconArrowRight, IconLayout, IconClock } from './ui/Icons';
+import { IconClose, IconPlus, IconCheck, IconArrowRight, IconLayout } from './ui/Icons';
 
 interface GuideModalProps {
   isOpen: boolean;
@@ -53,11 +53,15 @@ export const GuideModal: React.FC<GuideModalProps> = ({ isOpen, onClose, onInser
   const handleInsertFinal = () => {
     if (!selectedTemplate) return;
     let finalContent = selectedTemplate.content;
+    
+    // Using split/join instead of RegExp for dynamic key replacement 
+    // to avoid escaping issues with curly braces in placeholders.
     Object.entries(variables).forEach(([key, val]) => {
-      // Fix: Cast val to string to resolve 'unknown' type error during Object.entries on Record<string, string>
+      const placeholder = `{{${key}}}`;
       const replacement = (val as string).trim() || `[${key}]`;
-      finalContent = finalContent.replace(new RegExp(`{{${key}}}`, 'g'), replacement);
+      finalContent = finalContent.split(placeholder).join(replacement);
     });
+
     onInsert(finalContent);
     onClose();
   };

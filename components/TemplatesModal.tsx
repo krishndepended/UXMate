@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { TEMPLATES, RichTemplate } from '../constants';
 import { Button } from './ui/Button';
-import { IconClose, IconSearch, IconTag, IconPlus, IconBeaker, IconArrowRight, IconCheck } from './ui/Icons';
+import { IconClose, IconSearch, IconTag, IconPlus, IconBeaker } from './ui/Icons';
 
 interface TemplatesModalProps {
   isOpen: boolean;
@@ -135,10 +134,12 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({ isOpen, onClose,
 
   const handleInsertFinal = (rawContent: string, template: RichTemplate, type: 'block' | 'plain') => {
     let finalContent = rawContent;
+    
+    // Robust placeholder replacement
     Object.entries(variables).forEach(([key, val]) => {
+      const placeholder = `{{${key}}}`;
       const replacement = (val as string).trim() || `[${key}]`;
-      const regex = new RegExp(`{{${key}}}`, 'g');
-      finalContent = finalContent.replace(regex, replacement);
+      finalContent = finalContent.split(placeholder).join(replacement);
     });
 
     const timestamp = new Date().toLocaleString();
