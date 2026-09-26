@@ -5,14 +5,17 @@ import { Button } from './ui/Button';
 import { 
   IconDownload, IconTrash, IconFile, IconReplace, IconCheck, IconArrowRight, 
   IconLayout, IconPlus, IconEye, IconEdit, IconChevronDown, IconClose, 
-  IconSave, IconChecklist, IconBook 
+  IconSave, IconChecklist, IconBook, IconSplit, IconDocument, IconGrid,
+  IconSparkles, IconQuote, IconTable, IconCode, IconZoomIn
 } from './ui/Icons';
 import { ProgressRing } from './ui/ProgressRing';
 import { ContextMenu } from './ui/ContextMenu';
 import { HistoryModal } from './HistoryModal';
 import { GuideModal } from './GuideModal';
+import { LightboxModal } from './LightboxModal';
 import { generateFullHtml } from '../utils/exporter';
 import { parseMarkdown } from '../utils/pdfTemplate';
+import { STAGE_SCAFFOLDS } from '../utils/scaffolding';
 
 interface WorkspaceProps {
   project: Project | null;
@@ -55,6 +58,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   className = '',
 }) => {
   const [notes, setNotes] = useState('');
+  const [viewMode, setViewMode] = useState<'split' | 'editor' | 'gallery'>(() => {
+    return (localStorage.getItem('uxmate_workspace_view') as 'split' | 'editor' | 'gallery') || 'split';
+  });
   const [activeMobileTab, setActiveMobileTab] = useState<'strategy' | 'evidence'>('strategy');
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'idle' | 'modified'>('idle');
@@ -64,6 +70,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const [exportEditMode, setExportEditMode] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; x: number; y: number; assetIndex: number; } | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -95,6 +102,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       }
     }
   }, [project?.id, currentStepId, project?.steps?.[currentStepId]?.notes]);
+
+  const handleSetViewMode = (mode: 'split' | 'editor' | 'gallery') => {
+    setViewMode(mode);
+    localStorage.setItem('uxmate_workspace_view', mode);
+  };
 
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newVal = e.target.value;
@@ -217,6 +229,44 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     }, 0);
   };
 
+  const handleInsertStageScaffold = () => {
+    const scaffold = STAGE_SCAFFOLDS[currentStepId] || `## 📋 ${currentStage.label}\n\n### Objective\n${currentStage.help}\n\n### Findings & Decisions\n- \n`;
+    handleInsert(scaffold);
+  };
+
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Cmd+B / Ctrl+B: Bold
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      insertMarkdownFormatting('**', '**');
+    }
+    // Cmd+I / Ctrl+I: Italic
+    else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'i') {
+      e.preventDefault();
+      insertMarkdownFormatting('*', '*');
+    }
+    // Cmd+K / Ctrl+K: Link
+    else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      insertMarkdownFormatting('[', '](https://)');
+    }
+    // Tab key indent
+    else if (e.key === 'Tab') {
+      e.preventDefault();
+      if (!textareaRef.current) return;
+      const textarea = textareaRef.current;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newNotes = notes.substring(0, start) + '  ' + notes.substring(end);
+      setNotes(newNotes);
+      notesRef.current = newNotes;
+      setSaveStatus('modified');
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 2;
+      }, 0);
+    }
+  };
+
   const updateExportConfig = (updates: Partial<ExportConfig>) => {
     if (!project) return;
     const current = project.exportConfig || {
@@ -281,6 +331,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   const progress = project.steps ? Math.round((STAGES.filter(s => project.steps?.[s.id]?.isComplete).length / STAGES.length) * 100) : 0;
   const stepAssets = project.assets ? project.assets.filter(a => (a.stepId === currentStepId) || (currentStepId === 'problem' && !a.stepId)) : [];
   const wordCount = notes.trim() ? notes.trim().split(/\s+/).length : 0;
+  const readTimeMinutes = Math.max(1, Math.ceil(wordCount / 180));
+  const depthLevel = wordCount === 0 ? 'Empty' : wordCount < 50 ? 'Draft' : wordCount < 180 ? 'Detailed' : 'Comprehensive';
 
   // CASE STUDY / EXPORT STUDIO VIEW
   if (currentStepId === 'casestudy') {
@@ -504,8 +556,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       )}
 
       {/* Main Workspace Header */}
-      <div className="bg-white border-b border-slate-200 px-6 md:px-8 py-3.5 shadow-2xs flex flex-col gap-2 shrink-0 pt-safe">
-        <div className="flex justify-between items-start md:items-center gap-4">
+      <div className="bg-white border-b border-slate-200 px-6 md:px-8 py-3.5 shadow-2xs flex flex-col gap-2.5 shrink-0 pt-safe">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             {/* Breadcrumb Hierarchy */}
             <div className="flex flex-wrap items-center gap-2 mb-1 text-xs text-slate-500">
@@ -530,11 +582,66 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{currentStage.description}</p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Top Controls & View Mode Switcher */}
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            {/* Desktop View Mode Segmented Switcher */}
+            <div className="hidden md:flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+              <button 
+                onClick={() => handleSetViewMode('split')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewMode === 'split' 
+                    ? 'bg-white text-slate-900 shadow-2xs font-bold' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Side-by-side Strategy & Evidence"
+              >
+                <IconSplit className="w-3.5 h-3.5" />
+                <span>Split</span>
+              </button>
+              <button 
+                onClick={() => handleSetViewMode('editor')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewMode === 'editor' 
+                    ? 'bg-white text-slate-900 shadow-2xs font-bold' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Distraction-free Strategy Notes Focus"
+              >
+                <IconDocument className="w-3.5 h-3.5" />
+                <span>Editor Focus</span>
+              </button>
+              <button 
+                onClick={() => handleSetViewMode('gallery')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewMode === 'gallery' 
+                    ? 'bg-white text-slate-900 shadow-2xs font-bold' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Evidence Vault Visual Grid"
+              >
+                <IconGrid className="w-3.5 h-3.5" />
+                <span>Gallery ({stepAssets.length})</span>
+              </button>
+            </div>
+
+            {/* Stage Methodology Drawer Trigger */}
+            <button 
+              onClick={() => setIsGuideOpen(!isGuideOpen)} 
+              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 ${
+                isGuideOpen 
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-2xs' 
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+              title="Toggle Methodology Guidelines Drawer"
+            >
+              <IconBook className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Stage Guide</span>
+            </button>
+
             <button 
               onClick={() => setIsPreviewMode(!isPreviewMode)} 
-              className={`p-2 rounded-lg border transition-all active:scale-95 ${
-                isPreviewMode ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+              className={`p-2 rounded-xl border transition-all active:scale-95 ${
+                isPreviewMode ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
               title={isPreviewMode ? 'Switch to Edit' : 'Preview Formatted Markdown'}
             >
@@ -568,205 +675,483 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         </div>
       </div>
 
-      {/* Main Content Grid (Strategy Pane + Artifacts Vault) */}
-      <div className="flex-1 flex flex-col md:grid md:grid-cols-2 gap-0 md:gap-5 overflow-hidden p-0 md:p-5 bg-slate-50/40">
+      {/* Main Workspace Layout Canvas */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-50/70">
         
-        {/* Strategy Editor Pane */}
-        <div className={`flex flex-col min-h-0 flex-1 h-full bg-white md:bg-transparent transition-all ${
-          activeMobileTab === 'strategy' ? 'translate-x-0' : '-translate-x-full md:translate-x-0 absolute md:relative opacity-0 md:opacity-100'
-        }`}>
-          <div className="bg-white md:border md:border-slate-200 md:rounded-2xl shadow-xs flex-1 flex flex-col relative overflow-hidden">
-            
-            {/* Formatting & Frameworks Toolbar */}
-            <div className="flex flex-col border-b border-slate-100 bg-slate-50/60 shrink-0">
-              <div className="flex items-center justify-between px-4 py-2.5 gap-2 flex-wrap">
-                {/* Markdown Quick Formatting */}
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => insertMarkdownFormatting('**', '**')} 
-                    className="p-1 rounded-md text-slate-600 hover:bg-slate-200 text-xs font-bold px-2"
-                    title="Bold"
-                  >
-                    B
-                  </button>
-                  <button 
-                    onClick={() => insertMarkdownFormatting('### ')} 
-                    className="p-1 rounded-md text-slate-600 hover:bg-slate-200 text-xs font-bold px-1.5"
-                    title="Heading 3"
-                  >
-                    H3
-                  </button>
-                  <button 
-                    onClick={() => insertMarkdownFormatting('- ')} 
-                    className="p-1 rounded-md text-slate-600 hover:bg-slate-200 text-xs px-1.5"
-                    title="Bullet List"
-                  >
-                    • List
-                  </button>
-                  <button 
-                    onClick={() => insertMarkdownFormatting('- [ ] ')} 
-                    className="p-1 rounded-md text-slate-600 hover:bg-slate-200 text-xs px-1.5 flex items-center gap-1"
-                    title="Checklist Task"
-                  >
-                    <IconChecklist className="w-3.5 h-3.5" /> Task
-                  </button>
-                  <button 
-                    onClick={() => insertMarkdownFormatting('> ')} 
-                    className="p-1 rounded-md text-slate-600 hover:bg-slate-200 text-xs italic px-1.5"
-                    title="Quote"
-                  >
-                    "Quote"
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => setIsGuideOpen(true)} 
-                    className="bg-slate-900 hover:bg-black text-white rounded-lg px-3 py-1.5 text-xs font-medium flex items-center shadow-2xs active:scale-95 transition-all"
-                  >
-                    <IconBook className="w-3.5 h-3.5 mr-1.5" /> Stage Guide
-                  </button>
-
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="font-mono text-slate-400">{wordCount} words</span>
-                    <button 
-                      onClick={handleSave} 
-                      className={`text-[11px] font-semibold uppercase px-2 py-1 rounded transition-all flex items-center gap-1 ${
-                        saveStatus === 'saved' ? 'text-emerald-700 bg-emerald-50' : 
-                        saveStatus === 'saving' ? 'text-blue-700 bg-blue-50' : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      <IconSave className="w-3 h-3" />
-                      {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Save'}
-                    </button>
+        {/* VIEW MODE: GALLERY FOCUS */}
+        {viewMode === 'gallery' ? (
+          <div className="flex-1 flex flex-col min-h-0 p-4 md:p-6 overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-xs flex-1 flex flex-col overflow-hidden">
+              {/* Gallery Header Bar */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/60 shrink-0 flex-wrap gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Evidence Vault</h3>
+                    <span className="text-xs text-slate-500">· {stepAssets.length} artifacts in this stage</span>
                   </div>
+                  <p className="text-xs text-slate-500 mt-0.5">Wireframes, user test recordings, screen grabs, and research artifacts</p>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <button 
+                    onClick={() => handleSetViewMode('editor')} 
+                    className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    ← Edit Strategy Notes
+                  </button>
+                  <label className="cursor-pointer active:scale-95 transition-all">
+                    <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && onUploadAsset(e.target.files[0])} />
+                    <div className="px-3.5 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-semibold shadow-2xs flex items-center hover:bg-black">
+                      <IconPlus className="w-3.5 h-3.5 mr-1.5" /> Add Evidence
+                    </div>
+                  </label>
                 </div>
               </div>
 
-              {/* Template shortcuts */}
-              {phaseTemplates.length > 0 && !isPreviewMode && (
-                <div className="px-4 pb-2.5 flex gap-2 overflow-x-auto hide-scrollbar">
-                   {phaseTemplates.map(t => (
-                     <button 
-                       key={t.key} 
-                       onClick={() => handleInsert(t.content)} 
-                       className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 hover:border-blue-500 hover:text-blue-600 transition-all whitespace-nowrap shadow-2xs active:scale-95"
-                     >
-                       + {t.label}
-                     </button>
-                   ))}
-                </div>
-              )}
+              {/* Gallery Grid */}
+              <div className="flex-1 overflow-y-auto p-6 bg-slate-50/40">
+                {stepAssets.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-white m-4">
+                    <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3 text-slate-400">
+                      <IconGrid className="w-7 h-7" />
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-1">No Evidence Attached</h4>
+                    <p className="text-xs text-slate-500 max-w-sm leading-relaxed mb-4">
+                      Upload design mockups, interview quotes, or user journey charts to support your strategy decisions.
+                    </p>
+                    <label className="cursor-pointer active:scale-95 transition-all">
+                      <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && onUploadAsset(e.target.files[0])} />
+                      <span className="px-4 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-semibold shadow-xs">
+                        + Select Image File
+                      </span>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                    {stepAssets.map((asset, i) => {
+                      const originalIdx = project.assets.indexOf(asset);
+                      return (
+                        <div 
+                          key={i} 
+                          className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col group"
+                        >
+                          <div 
+                            className="relative aspect-video bg-slate-100 cursor-pointer overflow-hidden"
+                            onClick={() => setLightboxIndex(i)}
+                          >
+                            <img 
+                              src={asset.url || asset.dataURL} 
+                              alt={asset.name} 
+                              className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200" 
+                            />
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                <span className="px-2.5 py-1.5 bg-white/95 backdrop-blur-md rounded-lg text-xs font-semibold text-slate-900 shadow-sm flex items-center gap-1.5 hover:bg-white active:scale-95 transition-all">
+                                  <IconEye className="w-3.5 h-3.5" /> Lightbox
+                                </span>
+                              </div>
+                              <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const link = document.createElement('a');
+                                    link.href = asset.url || asset.dataURL || '';
+                                    link.download = asset.name || 'artifact.png';
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                  }}
+                                  className="p-1.5 bg-white/95 backdrop-blur-md rounded-lg shadow-sm text-slate-700 hover:text-slate-950 hover:bg-white active:scale-95 transition-all"
+                                  title="Download Original Asset"
+                                >
+                                  <IconDownload className="w-3.5 h-3.5" />
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setReplaceIndex(originalIdx);
+                                    replaceInputRef.current?.click();
+                                  }}
+                                  className="p-1.5 bg-white/95 backdrop-blur-md rounded-lg shadow-sm text-slate-700 hover:text-slate-950 hover:bg-white active:scale-95 transition-all"
+                                  title="Replace Image"
+                                >
+                                  <IconReplace className="w-3.5 h-3.5" />
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteAsset(originalIdx);
+                                  }}
+                                  className="p-1.5 bg-white/95 backdrop-blur-md rounded-lg shadow-sm text-red-600 hover:bg-red-50 active:scale-95 transition-all"
+                                  title="Remove Artifact"
+                                >
+                                  <IconTrash className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                          </div>
+
+                          <div className="p-4 flex-1 flex flex-col justify-between gap-3">
+                            <div>
+                              <div className="flex justify-between items-start gap-2 mb-1">
+                                <h5 className="text-xs font-bold text-slate-900 truncate" title={asset.name}>
+                                  {asset.name}
+                                </h5>
+                                <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                  {new Date(asset.createdAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <textarea 
+                                placeholder="Explain rationale or findings..." 
+                                className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-blue-400 transition-colors resize-none h-14 text-slate-700 leading-relaxed font-sans placeholder:text-slate-400"
+                                value={asset.caption || ''}
+                                onChange={(e) => handleAssetCaptionChange(originalIdx, e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
+        ) : (
+          /* VIEW MODE: SPLIT OR EDITOR FOCUS */
+          <div className={`flex-1 flex flex-col ${viewMode === 'editor' ? 'overflow-y-auto p-4 md:p-6' : 'md:grid md:grid-cols-2 gap-0 md:gap-5 overflow-hidden p-0 md:p-5'}`}>
             
-            {/* Editor Textarea or Markdown Preview */}
-            <div className="flex-1 relative overflow-hidden">
-              {isPreviewMode ? (
-                <div className="absolute inset-0 p-6 md:p-8 overflow-y-auto prose prose-slate max-w-none bg-white font-sans">
-                  <div className="text-slate-800 leading-relaxed text-sm md:text-base font-normal" dangerouslySetInnerHTML={{ __html: parseMarkdown(notes) }} />
-                  {notes.length === 0 && (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-400 italic py-20">
-                      <IconFile className="w-10 h-10 mb-2 opacity-30" />
-                      <p className="text-xs">No strategy notes drafted yet. Click Edit to begin.</p>
+            {/* Strategy Editor Pane */}
+            <div className={`flex flex-col min-h-0 flex-1 h-full bg-white md:bg-transparent transition-all ${
+              viewMode === 'editor' ? 'max-w-4xl mx-auto w-full' : ''
+            } ${
+              activeMobileTab === 'strategy' ? 'translate-x-0' : '-translate-x-full md:translate-x-0 absolute md:relative opacity-0 md:opacity-100'
+            }`}>
+              <div className="bg-white md:border md:border-slate-200 md:rounded-2xl shadow-xs flex-1 flex flex-col relative overflow-hidden">
+                
+                {/* Formatting & Frameworks Toolbar */}
+                <div className="flex flex-col border-b border-slate-100 bg-slate-50/70 shrink-0">
+                  <div className="flex items-center justify-between px-3.5 py-2 gap-2 flex-wrap">
+                    {/* Markdown Quick Formatting */}
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+                        <button 
+                          onClick={() => insertMarkdownFormatting('**', '**')} 
+                          className="px-2 py-1 rounded text-slate-700 hover:bg-slate-100 text-xs font-bold transition-colors"
+                          title="Bold (⌘B)"
+                        >
+                          B
+                        </button>
+                        <button 
+                          onClick={() => insertMarkdownFormatting('*', '*')} 
+                          className="px-2 py-1 rounded text-slate-700 hover:bg-slate-100 text-xs italic font-serif transition-colors"
+                          title="Italic (⌘I)"
+                        >
+                          I
+                        </button>
+                        <button 
+                          onClick={() => insertMarkdownFormatting('## ')} 
+                          className="px-1.5 py-1 rounded text-slate-700 hover:bg-slate-100 text-xs font-bold transition-colors"
+                          title="Heading 2"
+                        >
+                          H2
+                        </button>
+                        <button 
+                          onClick={() => insertMarkdownFormatting('### ')} 
+                          className="px-1.5 py-1 rounded text-slate-700 hover:bg-slate-100 text-xs font-bold transition-colors"
+                          title="Heading 3"
+                        >
+                          H3
+                        </button>
+                      </div>
+
+                      <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+                        <button 
+                          onClick={() => insertMarkdownFormatting('- ')} 
+                          className="px-2 py-1 rounded text-slate-700 hover:bg-slate-100 text-xs transition-colors"
+                          title="Bullet List"
+                        >
+                          • List
+                        </button>
+                        <button 
+                          onClick={() => insertMarkdownFormatting('1. ')} 
+                          className="px-2 py-1 rounded text-slate-700 hover:bg-slate-100 text-xs transition-colors"
+                          title="Numbered List"
+                        >
+                          1. List
+                        </button>
+                        <button 
+                          onClick={() => insertMarkdownFormatting('- [ ] ')} 
+                          className="px-2 py-1 rounded text-slate-700 hover:bg-slate-100 text-xs flex items-center gap-1 transition-colors"
+                          title="Task Checklist"
+                        >
+                          <IconChecklist className="w-3.5 h-3.5" /> Task
+                        </button>
+                      </div>
+
+                      <div className="hidden sm:flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+                        <button 
+                          onClick={() => insertMarkdownFormatting('> "Quote" — User Role\n')} 
+                          className="px-2 py-1 rounded text-slate-700 hover:bg-slate-100 text-xs flex items-center gap-1 transition-colors"
+                          title="Insert User Quote"
+                        >
+                          <IconQuote className="w-3.5 h-3.5" /> Quote
+                        </button>
+                        <button 
+                          onClick={() => insertMarkdownFormatting('> 💡 **Key Finding:** ')} 
+                          className="px-2 py-1 rounded text-slate-700 hover:bg-slate-100 text-xs flex items-center gap-1 transition-colors"
+                          title="Insert Key Finding Callout"
+                        >
+                          <span>💡</span> Finding
+                        </button>
+                        <button 
+                          onClick={() => insertMarkdownFormatting('> 🧪 **Hypothesis:** Because [insight], we expect [outcome].\n')} 
+                          className="px-2 py-1 rounded text-slate-700 hover:bg-slate-100 text-xs flex items-center gap-1 transition-colors"
+                          title="Insert Hypothesis"
+                        >
+                          <span>🧪</span> Hypothesis
+                        </button>
+                        <button 
+                          onClick={() => insertMarkdownFormatting('\n| Feature / Finding | Rationale | Priority |\n|---|---|---|\n| Item 1 | Detail description | High |\n')} 
+                          className="px-2 py-1 rounded text-slate-700 hover:bg-slate-100 text-xs flex items-center gap-1 transition-colors"
+                          title="Insert Markdown Table"
+                        >
+                          <IconTable className="w-3.5 h-3.5" /> Table
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Right Action & Telemetry */}
+                    <div className="flex items-center gap-2.5">
+                      {viewMode === 'editor' && (
+                        <button 
+                          onClick={() => handleSetViewMode('gallery')}
+                          className="text-xs text-slate-600 hover:text-blue-600 font-medium flex items-center gap-1 mr-1"
+                        >
+                          <IconGrid className="w-3.5 h-3.5" />
+                          <span>{stepAssets.length} Artifacts →</span>
+                        </button>
+                      )}
+
+                      {/* Word count & Reading Telemetry */}
+                      <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-500 font-mono">
+                        <span>{wordCount} words</span>
+                        <span>·</span>
+                        <span>~{readTimeMinutes}m read</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-sans font-semibold uppercase ${
+                          depthLevel === 'Comprehensive' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                          depthLevel === 'Detailed' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                          'bg-slate-100 text-slate-600'
+                        }`}>
+                          {depthLevel}
+                        </span>
+                      </div>
+
+                      <button 
+                        onClick={handleSave} 
+                        className={`text-[11px] font-semibold uppercase px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
+                          saveStatus === 'saved' ? 'text-emerald-700 bg-emerald-50' : 
+                          saveStatus === 'saving' ? 'text-blue-700 bg-blue-50' : 'text-slate-600 hover:text-slate-900 bg-white border border-slate-200 shadow-2xs'
+                        }`}
+                        title="Save Notes (⌘S)"
+                      >
+                        <IconSave className="w-3 h-3" />
+                        {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Stage-Specific Guided Scaffolding Banner if Notes are Empty */}
+                  {notes.trim().length === 0 && !isPreviewMode && (
+                    <div className="mx-4 mb-2 p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl flex items-center justify-between gap-3 animate-in fade-in duration-200">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+                          <IconSparkles className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-blue-950 truncate">
+                            Start with the {currentStage.label.replace(/^\d+\.\s/, '')} framework
+                          </div>
+                          <div className="text-[11px] text-blue-800/80 mt-0.5 truncate">
+                            Pre-structured sections for user pain points, key metrics, and evidence
+                          </div>
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        onClick={handleInsertStageScaffold} 
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 shadow-2xs"
+                      >
+                        Insert Framework
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Template shortcuts */}
+                  {phaseTemplates.length > 0 && !isPreviewMode && (
+                    <div className="px-4 pb-2 flex gap-2 overflow-x-auto hide-scrollbar">
+                       {phaseTemplates.map(t => (
+                         <button 
+                           key={t.key} 
+                           onClick={() => handleInsert(t.content)} 
+                           className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 hover:border-blue-500 hover:text-blue-600 transition-all whitespace-nowrap shadow-2xs active:scale-95"
+                         >
+                           + {t.label}
+                         </button>
+                       ))}
                     </div>
                   )}
                 </div>
-              ) : (
-                <textarea
-                  ref={textareaRef}
-                  value={notes}
-                  onChange={handleNotesChange}
-                  onBlur={handleSave} 
-                  placeholder={`Stage Guide: ${currentStage.help}\n\nDocument your design rationale, user findings, problem statements, and specifications here...\n\n(Tip: Paste images directly with Cmd+V or drag & drop files onto this window)`}
-                  className="w-full h-full bg-white p-6 md:p-8 resize-none focus:outline-none text-slate-800 leading-relaxed text-sm md:text-base font-normal font-sans placeholder:text-slate-400"
-                />
-              )}
+                
+                {/* Editor Textarea or Markdown Preview */}
+                <div className="flex-1 relative overflow-hidden">
+                  {isPreviewMode ? (
+                    <div className="absolute inset-0 p-6 md:p-8 overflow-y-auto prose prose-slate max-w-none bg-white font-sans">
+                      <div className="text-slate-800 leading-relaxed text-sm md:text-base font-normal" dangerouslySetInnerHTML={{ __html: parseMarkdown(notes) }} />
+                      {notes.length === 0 && (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 italic py-20">
+                          <IconFile className="w-10 h-10 mb-2 opacity-30" />
+                          <p className="text-xs">No strategy notes drafted yet. Click Edit to begin.</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <textarea
+                      ref={textareaRef}
+                      value={notes}
+                      onChange={handleNotesChange}
+                      onKeyDown={handleTextareaKeyDown}
+                      onBlur={handleSave} 
+                      placeholder={`Stage Guide: ${currentStage.help}\n\nDocument your design rationale, user findings, problem statements, and specifications here...\n\n(Tip: Paste images directly with Cmd+V or drag & drop files onto this window)`}
+                      className="w-full h-full bg-white p-6 md:p-8 resize-none focus:outline-none text-slate-800 leading-relaxed text-sm md:text-base font-normal font-sans placeholder:text-slate-400"
+                    />
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Artifacts & Evidence Vault Pane */}
-        <div className={`flex flex-col flex-1 min-h-0 h-full bg-slate-50 md:bg-transparent transition-all ${
-          activeMobileTab === 'evidence' ? 'translate-x-0' : '-translate-x-full md:translate-x-0 absolute md:relative opacity-0 md:opacity-100'
-        }`}>
-          <div className="bg-white md:border md:border-slate-200 md:rounded-2xl shadow-xs flex-1 flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/60 shrink-0">
-               <div>
-                 <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Process Artifacts</h3>
-                 <p className="text-[11px] text-slate-400">Sketches, Wireframes, Screen Captures ({stepAssets.length})</p>
-               </div>
-               <label className="cursor-pointer active:scale-95 transition-all">
-                  <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && onUploadAsset(e.target.files[0])} />
-                  <div className="px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-medium shadow-2xs flex items-center hover:bg-black">
-                    <IconPlus className="w-3.5 h-3.5 mr-1" /> Add Evidence
+            {/* Artifacts & Evidence Vault Pane (Visible in Split Mode) */}
+            {viewMode === 'split' && (
+              <div className={`flex flex-col flex-1 min-h-0 h-full bg-slate-50 md:bg-transparent transition-all ${
+                activeMobileTab === 'evidence' ? 'translate-x-0' : '-translate-x-full md:translate-x-0 absolute md:relative opacity-0 md:opacity-100'
+              }`}>
+                <div className="bg-white md:border md:border-slate-200 md:rounded-2xl shadow-xs flex-1 flex flex-col overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/60 shrink-0">
+                     <div>
+                       <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Process Artifacts</h3>
+                       <p className="text-[11px] text-slate-400">Sketches, Wireframes, Screen Captures ({stepAssets.length})</p>
+                     </div>
+                     <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => handleSetViewMode('gallery')}
+                          className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 text-xs font-medium"
+                          title="Expand to Full Gallery"
+                        >
+                          <IconGrid className="w-4 h-4" />
+                        </button>
+                        <label className="cursor-pointer active:scale-95 transition-all">
+                          <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && onUploadAsset(e.target.files[0])} />
+                          <div className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-medium shadow-2xs flex items-center hover:bg-black">
+                            <IconPlus className="w-3.5 h-3.5 mr-1" /> Add Evidence
+                          </div>
+                        </label>
+                     </div>
                   </div>
-               </label>
-            </div>
 
-            <div className="flex-1 overflow-y-auto p-5 bg-slate-50/30">
-              {stepAssets.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-xl m-1">
-                   <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 shadow-2xs flex items-center justify-center mb-3">
-                     <IconFile className="w-6 h-6 text-slate-300" />
-                   </div>
-                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">No Evidence Attached</h4>
-                   <p className="text-xs text-slate-400 max-w-[240px] leading-relaxed">
-                     Paste screenshots from clipboard (Cmd+V) or drop design files here to back up your design decisions.
-                   </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {[...stepAssets].reverse().map((asset, i) => {
-                    const originalIdx = project.assets.indexOf(asset);
-                    return (
-                      <div key={i} className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs group">
-                        <div className="relative aspect-video bg-slate-100 rounded-lg overflow-hidden mb-2.5 border border-slate-100">
-                          <img src={asset.url || asset.dataURL} className="w-full h-full object-contain" alt={asset.name} />
-                          <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
-                             <button 
-                               onClick={() => {
-                                 const w = window.open('', '_blank');
-                                 if (w) {
-                                   w.document.write(`<img src="${asset.url || asset.dataURL}" style="max-width:100%;height:auto;margin:auto;display:block;" />`);
-                                 }
-                               }} 
-                               className="p-1.5 bg-white/95 backdrop-blur-md rounded-md shadow text-slate-800 active:scale-95"
-                               title="View Fullscreen"
-                             >
-                               <IconEye className="w-3.5 h-3.5" />
-                             </button>
-                             <button 
-                               onClick={() => deleteAsset(originalIdx)} 
-                               className="p-1.5 bg-white/95 backdrop-blur-md rounded-md shadow text-red-600 active:scale-95"
-                               title="Remove Artifact"
-                             >
-                               <IconTrash className="w-3.5 h-3.5" />
-                             </button>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex justify-between items-center mb-1.5">
-                            <h5 className="text-xs font-semibold text-slate-800 truncate pr-2">{asset.name}</h5>
-                            <span className="text-[10px] text-slate-400 font-mono">{new Date(asset.createdAt).toLocaleDateString()}</span>
-                          </div>
-                          <textarea 
-                            placeholder="Add strategic context explaining this artifact..." 
-                            className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-blue-400 transition-colors resize-none h-16 text-slate-700 leading-relaxed font-sans placeholder:text-slate-400"
-                            value={asset.caption || ''}
-                            onChange={(e) => handleAssetCaptionChange(originalIdx, e.target.value)}
-                          />
-                        </div>
+                  <div className="flex-1 overflow-y-auto p-5 bg-slate-50/30">
+                    {stepAssets.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-xl m-1">
+                         <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 shadow-2xs flex items-center justify-center mb-3">
+                           <IconFile className="w-6 h-6 text-slate-300" />
+                         </div>
+                         <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">No Evidence Attached</h4>
+                         <p className="text-xs text-slate-400 max-w-[240px] leading-relaxed">
+                           Paste screenshots from clipboard (Cmd+V) or drop design files here to back up your design decisions.
+                         </p>
                       </div>
-                    );
-                  })}
+                    ) : (
+                      <div className="space-y-4">
+                        {stepAssets.map((asset, i) => {
+                          const originalIdx = project.assets.indexOf(asset);
+                          return (
+                            <div key={i} className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs group">
+                              <div 
+                                className="relative aspect-video bg-slate-100 rounded-lg overflow-hidden mb-2.5 border border-slate-100 cursor-pointer"
+                                onClick={() => setLightboxIndex(i)}
+                              >
+                                <img src={asset.url || asset.dataURL} className="w-full h-full object-contain" alt={asset.name} />
+                                <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                                   <button 
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       setLightboxIndex(i);
+                                     }} 
+                                     className="p-1.5 bg-white/95 backdrop-blur-md rounded-md shadow text-slate-800 hover:text-black active:scale-95 transition-all"
+                                     title="View in Lightbox"
+                                   >
+                                     <IconEye className="w-3.5 h-3.5" />
+                                   </button>
+                                   <button 
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       const link = document.createElement('a');
+                                       link.href = asset.url || asset.dataURL || '';
+                                       link.download = asset.name || 'artifact.png';
+                                       document.body.appendChild(link);
+                                       link.click();
+                                       document.body.removeChild(link);
+                                     }}
+                                     className="p-1.5 bg-white/95 backdrop-blur-md rounded-md shadow text-slate-700 hover:text-black active:scale-95 transition-all"
+                                     title="Download Original"
+                                   >
+                                     <IconDownload className="w-3.5 h-3.5" />
+                                   </button>
+                                   <button 
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       setReplaceIndex(originalIdx);
+                                       replaceInputRef.current?.click();
+                                     }} 
+                                     className="p-1.5 bg-white/95 backdrop-blur-md rounded-md shadow text-slate-700 hover:text-black active:scale-95 transition-all"
+                                     title="Replace Image"
+                                   >
+                                     <IconReplace className="w-3.5 h-3.5" />
+                                   </button>
+                                   <button 
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       deleteAsset(originalIdx);
+                                     }} 
+                                     className="p-1.5 bg-white/95 backdrop-blur-md rounded-md shadow text-red-600 hover:bg-red-50 active:scale-95 transition-all"
+                                     title="Remove Artifact"
+                                   >
+                                     <IconTrash className="w-3.5 h-3.5" />
+                                   </button>
+                                </div>
+                              </div>
+                              <div>
+                                <div className="flex justify-between items-center mb-1.5">
+                                  <h5 className="text-xs font-semibold text-slate-800 truncate pr-2">{asset.name}</h5>
+                                  <span className="text-[10px] text-slate-400 font-mono">{new Date(asset.createdAt).toLocaleDateString()}</span>
+                                </div>
+                                <textarea 
+                                  placeholder="Add strategic context explaining this artifact..." 
+                                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-blue-400 transition-colors resize-none h-16 text-slate-700 leading-relaxed font-sans placeholder:text-slate-400"
+                                  value={asset.caption || ''}
+                                  onChange={(e) => handleAssetCaptionChange(originalIdx, e.target.value)}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Sticky Primary Action Command Footer (Fitts's Law: Generous target, natural reach) */}
+      {/* Sticky Primary Action Command Footer */}
       <div className="hidden md:flex bg-white px-6 py-3 justify-between items-center z-40 pb-safe shadow-xs border-t border-slate-200">
          <button 
            onClick={() => prevStep && onStepSelect(prevStep.id)} 
@@ -795,7 +1180,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 </span>
             </button>
 
-            {/* Dominant Primary Next CTA (Von Restorff Effect) */}
+            {/* Dominant Primary Next CTA */}
             <Button 
               onClick={() => nextStep ? onStepSelect(nextStep.id) : onStepSelect('casestudy')} 
               size="lg" 
@@ -815,7 +1200,32 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       ]} />
       
       <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} versions={project.history || []} onRestore={restoreProjectVersion} />
+      
+      {/* Dockable Slide-out Methodology Drawer */}
       <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} onInsert={handleInsert} currentStepId={currentStepId} />
+
+      {/* Full fidelity In-App Image Lightbox */}
+      <LightboxModal 
+        isOpen={lightboxIndex !== null}
+        assets={stepAssets}
+        currentIndex={lightboxIndex ?? 0}
+        onClose={() => setLightboxIndex(null)}
+        onNavigate={setLightboxIndex}
+        onDeleteAsset={(idx) => {
+          const targetAsset = stepAssets[idx];
+          if (targetAsset) {
+            const origIdx = project.assets.indexOf(targetAsset);
+            if (origIdx >= 0) deleteAsset(origIdx);
+          }
+        }}
+        onUpdateCaption={(idx, caption) => {
+          const targetAsset = stepAssets[idx];
+          if (targetAsset) {
+            const origIdx = project.assets.indexOf(targetAsset);
+            if (origIdx >= 0) handleAssetCaptionChange(origIdx, caption);
+          }
+        }}
+      />
     </main>
   );
 };

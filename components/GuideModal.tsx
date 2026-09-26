@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { STAGES, TEMPLATES, RichTemplate } from '../constants';
 import { Button } from './ui/Button';
-import { IconClose, IconPlus, IconCheck, IconArrowRight, IconLayout } from './ui/Icons';
+import { IconClose, IconPlus, IconCheck, IconArrowRight, IconBook } from './ui/Icons';
 
 interface GuideModalProps {
   isOpen: boolean;
@@ -32,6 +32,15 @@ export const GuideModal: React.FC<GuideModalProps> = ({ isOpen, onClose, onInser
     }
   }, [isOpen, currentStepId]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   const handleTemplateSelect = (t: RichTemplate) => {
     const regex = /{{(.*?)}}/g;
     const matches = t.content.match(regex);
@@ -54,8 +63,6 @@ export const GuideModal: React.FC<GuideModalProps> = ({ isOpen, onClose, onInser
     if (!selectedTemplate) return;
     let finalContent = selectedTemplate.content;
     
-    // Using split/join instead of RegExp for dynamic key replacement 
-    // to avoid escaping issues with curly braces in placeholders.
     Object.entries(variables).forEach(([key, val]) => {
       const placeholder = `{{${key}}}`;
       const replacement = (val as string).trim() || `[${key}]`;
@@ -69,152 +76,216 @@ export const GuideModal: React.FC<GuideModalProps> = ({ isOpen, onClose, onInser
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-200">
-      <div className="bg-white border border-slate-200 w-full max-w-4xl rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col h-[92vh] md:h-[80vh] overflow-hidden">
-        
-        {/* Header: Context Switcher */}
-        <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white shrink-0">
-          <div className="flex items-center gap-4">
-             <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-                <IconLayout className="w-6 h-6" />
-             </div>
-             <div>
-               <h2 className="text-lg font-extrabold text-slate-900 leading-tight">UX Process Guide</h2>
-               <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase text-blue-500 tracking-tighter bg-blue-50 px-1.5 py-0.5 rounded">Active Milestone</span>
-                  <select 
-                    value={selectedStepId} 
-                    onChange={(e) => setSelectedStepId(e.target.value)}
-                    className="text-xs font-bold text-slate-500 bg-transparent outline-none cursor-pointer border-b border-dashed border-slate-300 pb-0.5 hover:text-blue-600 transition-colors"
-                  >
-                    {STAGES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                  </select>
-               </div>
-             </div>
+    <>
+      {/* Mobile backdrop scrim */}
+      <div 
+        onClick={onClose}
+        className="fixed inset-0 z-[85] bg-slate-900/40 backdrop-blur-xs md:hidden animate-in fade-in duration-200"
+        aria-hidden="true"
+      />
+
+      {/* Dockable Slide-out Drawer */}
+      <aside 
+        className="fixed top-0 right-0 bottom-0 z-[90] w-full sm:w-[460px] md:w-[480px] bg-white border-l border-slate-200 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 overflow-hidden"
+        aria-label="UX Methodology Drawer"
+      >
+        {/* Drawer Header */}
+        <div className="p-5 border-b border-slate-200 bg-white flex items-center justify-between gap-4 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <IconBook className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <span>Methodology Guide</span>
+                <span>·</span>
+                <span>Stage Reference</span>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <select 
+                  value={selectedStepId} 
+                  onChange={(e) => setSelectedStepId(e.target.value)}
+                  className="text-sm font-bold text-slate-900 bg-transparent outline-none cursor-pointer border-b border-dashed border-slate-300 pb-0.5 hover:text-blue-600 transition-colors truncate max-w-[280px]"
+                >
+                  {STAGES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
+              </div>
+            </div>
           </div>
-          <button onClick={onClose} className="absolute top-4 right-4 md:static p-2 text-slate-400 hover:text-slate-900 transition-colors"><IconClose className="w-6 h-6" /></button>
+
+          <button 
+            onClick={onClose} 
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            title="Close Drawer (Esc)"
+          >
+            <IconClose className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex px-4 md:px-6 bg-slate-50 border-b border-slate-100">
+        {/* Tab Switcher */}
+        <div className="flex px-5 bg-slate-50 border-b border-slate-200 shrink-0">
           <button 
             onClick={() => setActiveTab('learn')}
-            className={`px-4 py-3 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'learn' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}
+            className={`py-3 px-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px ${
+              activeTab === 'learn' 
+                ? 'border-blue-600 text-blue-600 font-bold' 
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
           >
-            Learn
+            Objectives & Best Practices
           </button>
           <button 
             onClick={() => { setActiveTab('frameworks'); setInsertionStep('list'); }}
-            className={`px-4 py-3 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${activeTab === 'frameworks' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}
+            className={`py-3 px-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px ${
+              activeTab === 'frameworks' 
+                ? 'border-blue-600 text-blue-600 font-bold' 
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
           >
-            Frameworks
+            Templates ({relevantTemplates.length})
           </button>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        {/* Content Body */}
+        <div className="flex-1 overflow-y-auto p-5 md:p-6 bg-slate-50/50 space-y-6">
           {activeTab === 'learn' && (
-            <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-2 duration-300">
-              <section>
-                <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-3">The Objective</h3>
-                <p className="text-lg md:text-xl text-slate-700 font-medium leading-relaxed italic border-l-4 border-blue-100 pl-6">
+            <div className="space-y-6">
+              {/* Objective */}
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Stage Objective</span>
+                <p className="text-sm font-medium text-slate-800 leading-relaxed italic border-l-3 border-blue-500 pl-3">
                   "{stage.guide?.why}"
                 </p>
-              </section>
+              </div>
 
-              <div className="grid md:grid-cols-2 gap-8">
-                <section>
-                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center">
-                    <IconCheck className="w-4 h-4 mr-2 text-emerald-500" /> Best Practices
-                  </h3>
-                  <ul className="space-y-4">
-                    {stage.guide?.bestPractices.map((bp, i) => (
-                      <li key={i} className="flex gap-3 text-sm text-slate-600 leading-snug">
-                         <span className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 font-bold text-[10px]">{i+1}</span>
-                         {bp}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-                <section>
-                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center">
-                    <IconPlus className="w-4 h-4 mr-2 text-blue-500" /> Pro Deliverables
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {stage.guide?.deliverables.map((d, i) => (
-                      <span key={i} className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 shadow-sm">
-                        {d}
+              {/* Best Practices */}
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-1.5">
+                  <IconCheck className="w-4 h-4 text-emerald-600" /> Best Practices & Criteria
+                </h4>
+                <ul className="space-y-2.5">
+                  {stage.guide?.bestPractices.map((bp, i) => (
+                    <li key={i} className="flex gap-2.5 text-xs text-slate-600 leading-relaxed">
+                      <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">
+                        {i + 1}
                       </span>
-                    ))}
-                  </div>
-                </section>
+                      <span>{bp}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              
-              <div className="pt-8 border-t border-slate-50 flex justify-center">
-                 <Button onClick={() => setActiveTab('frameworks')} className="bg-blue-600 rounded-full px-8 shadow-xl shadow-blue-500/20">
-                    See Suggested Frameworks <IconArrowRight className="w-4 h-4 ml-2" />
-                 </Button>
+
+              {/* Recommended Deliverables */}
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
+                  Key Artifacts & Deliverables
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {stage.guide?.deliverables.map((d, i) => (
+                    <span 
+                      key={i} 
+                      className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700"
+                    >
+                      {d}
+                    </span>
+                  ))}
+                </div>
               </div>
+
+              {/* Quick Template Transition CTA */}
+              {relevantTemplates.length > 0 && (
+                <div className="pt-2 flex justify-center">
+                  <Button 
+                    onClick={() => { setActiveTab('frameworks'); setInsertionStep('list'); }} 
+                    variant="outline" 
+                    className="w-full text-xs font-semibold py-2.5"
+                  >
+                    Browse {relevantTemplates.length} Suggested Frameworks <IconArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
           {activeTab === 'frameworks' && (
-            <div className="animate-in slide-in-from-bottom-2 duration-300">
+            <div>
               {insertionStep === 'list' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   {relevantTemplates.length > 0 ? (
-                     relevantTemplates.map(t => (
-                       <div key={t.key} className="p-5 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 transition-all group flex flex-col justify-between shadow-sm">
-                          <div>
-                            <h4 className="font-bold text-slate-900 mb-1">{t.label}</h4>
-                            <p className="text-xs text-slate-400 mb-4 font-mono line-clamp-2 italic">{t.preview}</p>
-                          </div>
-                          <Button size="sm" onClick={() => handleTemplateSelect(t)} className="w-full bg-slate-50 border border-slate-200 text-slate-600 hover:bg-blue-600 hover:text-white hover:border-blue-600">
-                             Use This Framework
-                          </Button>
-                       </div>
-                     ))
-                   ) : (
-                     <div className="col-span-full py-20 text-center">
-                        <p className="text-slate-400 italic text-sm">No specific frameworks suggested for this stage yet.</p>
-                     </div>
-                   )}
+                <div className="space-y-3">
+                  {relevantTemplates.length > 0 ? (
+                    relevantTemplates.map(t => (
+                      <div 
+                        key={t.key} 
+                        className="p-4 bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition-all flex flex-col justify-between shadow-2xs group"
+                      >
+                        <div className="mb-3">
+                          <h4 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                            {t.label}
+                          </h4>
+                          <p className="text-xs text-slate-500 mt-1 font-mono line-clamp-2 leading-relaxed">
+                            {t.preview}
+                          </p>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleTemplateSelect(t)} 
+                          className="w-full bg-slate-900 hover:bg-black text-white text-xs font-semibold"
+                        >
+                          <IconPlus className="w-3.5 h-3.5 mr-1" /> Insert into Notes
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-16 text-center text-slate-400 italic text-xs">
+                      No specific templates configured for this stage yet.
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="max-w-xl mx-auto space-y-6">
-                   <div className="flex justify-between items-end">
-                      <h3 className="text-lg font-bold text-slate-900">Customize: {selectedTemplate?.label}</h3>
-                      <button onClick={() => setInsertionStep('list')} className="text-xs text-blue-600 font-bold hover:underline">Change Template</button>
-                   </div>
-                   <div className="space-y-4">
-                      {Object.keys(variables).map(key => (
-                        <div key={key}>
-                          <label className="block text-[10px] font-black uppercase text-slate-400 mb-1 tracking-widest">{key}</label>
-                          <input 
-                            type="text" 
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                            value={variables[key]}
-                            onChange={e => setVariables({...variables, [key]: e.target.value})}
-                            placeholder={`Enter ${key}...`}
-                          />
-                        </div>
-                      ))}
-                   </div>
-                   <div className="pt-6 flex gap-3">
-                      <Button variant="ghost" onClick={() => setInsertionStep('list')}>Cancel</Button>
-                      <Button onClick={handleInsertFinal} className="flex-1 bg-blue-600 shadow-lg shadow-blue-500/20">Insert into Document</Button>
-                   </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-4">
+                  <div className="flex justify-between items-baseline pb-2 border-b border-slate-100">
+                    <h3 className="text-sm font-bold text-slate-900">Customize: {selectedTemplate?.label}</h3>
+                    <button 
+                      onClick={() => setInsertionStep('list')} 
+                      className="text-xs text-blue-600 font-semibold hover:underline"
+                    >
+                      Back
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {Object.keys(variables).map(key => (
+                      <div key={key}>
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-1 uppercase tracking-wider">{key}</label>
+                        <input 
+                          type="text" 
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-500 outline-none transition-colors"
+                          value={variables[key]}
+                          onChange={e => setVariables({...variables, [key]: e.target.value})}
+                          placeholder={`Enter ${key}...`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="pt-2 flex gap-2">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => setInsertionStep('list')}
+                      className="text-xs"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleInsertFinal} 
+                      className="flex-1 bg-slate-900 hover:bg-black text-white text-xs font-semibold"
+                    >
+                      Insert into Notes
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
           )}
         </div>
-        
-        {/* Mobile Swipe-to-close Indicator */}
-        <div className="md:hidden py-4 flex justify-center border-t border-slate-50 bg-white pb-safe">
-           <div className="w-12 h-1.5 rounded-full bg-slate-200" />
-        </div>
-      </div>
-    </div>
+      </aside>
+    </>
   );
 };

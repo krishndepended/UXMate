@@ -9,10 +9,12 @@ import { ExportModal } from './components/ExportModal';
 import { Toast, ToastProps } from './components/ui/Toast';
 import { Tour } from './components/Tour';
 import { QuickSearchModal } from './components/QuickSearchModal';
+import { ProgressionBar } from './components/ProgressionBar';
 import { Button } from './components/ui/Button';
 import { 
   IconMenu, IconPlus, IconBug, IconClose, 
-  IconArrowRight, IconSearch, IconDownload, IconCheck
+  IconArrowRight, IconSearch, IconDownload, IconCheck,
+  IconSidebar
 } from './components/ui/Icons';
 
 function uid() {
@@ -41,6 +43,17 @@ const App: React.FC = () => {
   const [isDevMode, setIsDevMode] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('uxmate_sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebarCollapse = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('uxmate_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     try {
@@ -92,6 +105,11 @@ Mobile shoppers on our platform abandon their carts at a rate of 68% between the
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsQuickSearchOpen(prev => !prev);
+      }
+      // Cmd+B or Ctrl+B -> Toggle Sidebar Collapse
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        toggleSidebarCollapse();
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -220,6 +238,13 @@ Mobile shoppers on our platform abandon their carts at a rate of 68% between the
       <header className="flex h-16 border-b border-slate-200 bg-white/95 backdrop-blur-md items-center justify-between px-6 sticky top-0 z-[60] shrink-0 pt-safe">
         {/* Zone 1: Single Text Element Wordmark */}
         <div className="flex items-center gap-3">
+          <button 
+            onClick={toggleSidebarCollapse}
+            className="hidden md:flex p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors active:scale-95"
+            title="Toggle Sidebar Rail (⌘B)"
+          >
+            <IconSidebar className="w-4 h-4" />
+          </button>
           <div 
             onClick={() => { if (devClickCount + 1 === 5) setIsDevMode(true); setDevClickCount(prev => prev + 1); }} 
             className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center font-bold text-xs text-white shadow-sm select-none cursor-pointer active:scale-95 transition-all"
@@ -278,8 +303,15 @@ Mobile shoppers on our platform abandon their carts at a rate of 68% between the
         </div>
       </header>
 
+      {/* Horizontal Double Diamond Progression Bar (Macro-Phases & Wayfinding Track) */}
+      <ProgressionBar 
+        project={activeProject}
+        currentStepId={currentStepId}
+        onStepSelect={handleStepSelect}
+      />
+
       {/* Main Container */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-[1600px] mx-auto w-full md:p-6 md:gap-6 relative">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-[1600px] mx-auto w-full md:p-6 md:gap-5 relative">
         <Sidebar 
           state={state} 
           activeProject={activeProject}
@@ -292,6 +324,8 @@ Mobile shoppers on our platform abandon their carts at a rate of 68% between the
           onCloseMobile={() => setShowMobileProjects(false)}
           currentStepId={currentStepId}
           onStepSelect={handleStepSelect}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={toggleSidebarCollapse}
         />
 
         <Workspace 
