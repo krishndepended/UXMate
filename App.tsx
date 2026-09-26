@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Project, AppState, Asset, ProjectVersion } from './types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Project, AppState, Asset } from './types';
 import { STAGES } from './constants';
 import { Sidebar } from './components/Sidebar';
 import { Workspace } from './components/Workspace';
@@ -8,8 +8,12 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { ExportModal } from './components/ExportModal';
 import { Toast, ToastProps } from './components/ui/Toast';
 import { Tour } from './components/Tour';
+import { QuickSearchModal } from './components/QuickSearchModal';
 import { Button } from './components/ui/Button';
-import { IconMenu, IconLayout, IconPlus, IconBug, IconTrash, IconClose, IconCheck, IconArrowRight } from './components/ui/Icons';
+import { 
+  IconMenu, IconPlus, IconBug, IconClose, 
+  IconArrowRight, IconSearch, IconDownload, IconCheck
+} from './components/ui/Icons';
 
 function uid() {
   return 'p_' + Math.random().toString(36).slice(2, 9);
@@ -36,6 +40,7 @@ const App: React.FC = () => {
   const [devClickCount, setDevClickCount] = useState(0);
   const [isDevMode, setIsDevMode] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
+  const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -48,29 +53,91 @@ const App: React.FC = () => {
   useEffect(() => {
     if (Object.keys(state.projects).length === 0) {
       const id = uid();
+      const starterNotes = `### Problem Framing: Mobile Checkout Friction
+
+**Core Problem:** 
+Mobile shoppers on our platform abandon their carts at a rate of 68% between the cart review and final payment step. Users express frustration over repetitive address inputs, unexpected shipping fees at the final step, and lack of biometric one-click payment options.
+
+**Target Audience:**
+- Frequent mobile shoppers aged 22–45 making repeat weekly purchases.
+- First-time guests needing fast checkout without mandatory account creation.
+
+**Business Objectives & KPIs:**
+- Reduce checkout abandonment by at least 25% within 90 days of launch.
+- Decrease average checkout completion time from 145 seconds to under 45 seconds.
+- Increase adoption of 1-click Express Pay to 40% of transactions.`;
+
       const example: Project = {
-        id, title: 'Project: Grocery App', desc: 'Redesigning the cart experience', notes: '',
-        stages: {}, steps: STAGES.reduce((acc, s) => ({ ...acc, [s.id]: { notes: '', isComplete: false } }), {}),
-        assets: [], createdAt: new Date().toISOString(), currentStepId: 'problem'
+        id, 
+        title: 'Mobile Checkout Redesign', 
+        desc: 'Streamlining cart-to-purchase flow to reduce 35% cart abandonment', 
+        notes: starterNotes,
+        stages: {}, 
+        steps: STAGES.reduce((acc, s) => ({ 
+          ...acc, 
+          [s.id]: { notes: s.id === 'problem' ? starterNotes : '', isComplete: s.id === 'problem' } 
+        }), {}),
+        assets: [], 
+        createdAt: new Date().toISOString(), 
+        currentStepId: 'problem'
       };
       setState({ projects: { [id]: example }, activeProjectId: id });
     }
   }, []);
 
+  // Global Keyboard Shortcuts (Jakob's Law)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Cmd+K or Ctrl+K -> Quick Search Command Palette
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsQuickSearchOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   const activeProject = state.activeProjectId ? state.projects[state.activeProjectId] : null;
 
-  const handleCreateProject = (title: string, desc: string) => {
+  const handleCreateProject = (title: string, desc: string, starterNotes?: string) => {
     const id = uid();
-    const newProj: Project = { id, title, desc, notes: '', stages: {}, steps: STAGES.reduce((acc, s) => ({ ...acc, [s.id]: { notes: '', isComplete: false } }), {}), assets: [], createdAt: new Date().toISOString(), currentStepId: 'problem' };
+    const newProj: Project = { 
+      id, 
+      title, 
+      desc, 
+      notes: starterNotes || '', 
+      stages: {}, 
+      steps: STAGES.reduce((acc, s) => ({ 
+        ...acc, 
+        [s.id]: { notes: s.id === 'problem' && starterNotes ? starterNotes : '', isComplete: false } 
+      }), {}), 
+      assets: [], 
+      createdAt: new Date().toISOString(), 
+      currentStepId: 'problem' 
+    };
     setState(prev => ({ projects: { ...prev.projects, [id]: newProj }, activeProjectId: id }));
     setShowMobileProjects(false);
+    setToast({ message: `Project "${title}" created successfully!`, type: 'success' });
   };
 
   const deleteProject = (id: string) => {
-    setState(prev => {
-      const nextProjects = { ...prev.projects };
-      delete nextProjects[id];
-      return { projects: nextProjects, activeProjectId: prev.activeProjectId === id ? (Object.keys(nextProjects)[0] || null) : prev.activeProjectId };
+    const projectToDelete = state.projects[id];
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Delete Project',
+      message: `Are you sure you want to permanently delete "${projectToDelete?.title || 'this project'}"? All notes and evidence will be lost.`,
+      onConfirm: () => {
+        setState(prev => {
+          const nextProjects = { ...prev.projects };
+          delete nextProjects[id];
+          return { 
+            projects: nextProjects, 
+            activeProjectId: prev.activeProjectId === id ? (Object.keys(nextProjects)[0] || null) : prev.activeProjectId 
+          };
+        });
+        setToast({ message: 'Project deleted', type: 'info' });
+      }
     });
   };
 
@@ -84,22 +151,46 @@ const App: React.FC = () => {
          const p = prev.projects[prev.activeProjectId!];
          if (!p) return prev;
          const newSteps = { ...p.steps, [stepId]: { ...p.steps[stepId], ...data } };
-         return { ...prev, projects: { ...prev.projects, [p.id]: { ...p, steps: newSteps, history: [{ timestamp: new Date().toISOString(), notes: p.notes, stepData: newSteps }, ...(p.history || [])].slice(0, 3) } } };
+         return { 
+           ...prev, 
+           projects: { 
+             ...prev.projects, 
+             [p.id]: { 
+               ...p, 
+               steps: newSteps, 
+               history: [{ timestamp: new Date().toISOString(), notes: p.notes, stepData: newSteps }, ...(p.history || [])].slice(0, 3) 
+             } 
+           } 
+         };
      });
   }, [state.activeProjectId]);
 
   const duplicateProject = (id: string) => {
     const source = state.projects[id];
-    if(!source) return;
+    if (!source) return;
     const newId = uid();
-    setState(prev => ({ projects: { ...prev.projects, [newId]: { ...source, id: newId, title: `${source.title} (Copy)`, createdAt: new Date().toISOString() } }, activeProjectId: newId }));
+    setState(prev => ({ 
+      projects: { 
+        ...prev.projects, 
+        [newId]: { ...source, id: newId, title: `${source.title} (Copy)`, createdAt: new Date().toISOString() } 
+      }, 
+      activeProjectId: newId 
+    }));
+    setToast({ message: `Duplicated "${source.title}"`, type: 'success' });
   };
 
   const handleAssetUpload = async (file: File) => {
     if (!activeProject) return;
     const reader = new FileReader();
     reader.onload = (e) => {
-      const asset: Asset = { name: file.name, type: file.type, dataURL: e.target?.result as string, createdAt: new Date().toISOString(), size: file.size, stepId: activeProject.currentStepId || 'problem' };
+      const asset: Asset = { 
+        name: file.name, 
+        type: file.type, 
+        dataURL: e.target?.result as string, 
+        createdAt: new Date().toISOString(), 
+        size: file.size, 
+        stepId: activeProject.currentStepId || 'problem' 
+      };
       setState(prev => {
         const p = prev.projects[activeProject.id];
         return { ...prev, projects: { ...prev.projects, [p.id]: { ...p, assets: [...p.assets, asset] } } };
@@ -113,36 +204,92 @@ const App: React.FC = () => {
   const currentStepIndex = STAGES.findIndex(s => s.id === currentStepId);
   const nextStep = STAGES[currentStepIndex + 1];
   const prevStep = STAGES[currentStepIndex - 1];
-  const isStepComplete = activeProject?.steps?.[currentStepId]?.isComplete;
-
-  const toggleStepCompletion = () => {
-    if (!activeProject) return;
-    const stepData = activeProject.steps[currentStepId] || { notes: '', isComplete: false };
-    updateStepData(currentStepId, { notes: stepData.notes, isComplete: !stepData.isComplete });
-  };
 
   const handleStepSelect = (id: string) => {
     if (activeProject) updateProject(activeProject.id, { currentStepId: id });
     setShowMobileProjects(false);
   };
 
+  const completedStepsCount = activeProject 
+    ? STAGES.filter(s => activeProject.steps?.[s.id]?.isComplete).length 
+    : 0;
+
   return (
     <div className="h-full w-full bg-slate-50 text-slate-900 flex flex-col font-sans overflow-hidden">
-      {/* Header */}
-      <header className="flex h-16 border-b border-slate-200 bg-white/95 backdrop-blur-md items-center px-6 sticky top-0 z-[60] shrink-0 pt-safe">
-        <div onClick={() => { if(devClickCount + 1 === 5) setIsDevMode(true); setDevClickCount(prev => prev + 1); }} className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center font-black text-white mr-3 shadow-md select-none cursor-pointer active:scale-95">UX</div>
-        <h1 className="font-black text-base tracking-tightest">UXMate</h1>
-        {isDevMode && <button onClick={() => setIsDebugOpen(true)} className="ml-auto p-1.5 rounded bg-red-50 text-red-500"><IconBug className="w-4 h-4" /></button>}
+      {/* Top Bar Contract (3-Zone: Brand — Nav / Jump — Actions) */}
+      <header className="flex h-16 border-b border-slate-200 bg-white/95 backdrop-blur-md items-center justify-between px-6 sticky top-0 z-[60] shrink-0 pt-safe">
+        {/* Zone 1: Single Text Element Wordmark */}
+        <div className="flex items-center gap-3">
+          <div 
+            onClick={() => { if (devClickCount + 1 === 5) setIsDevMode(true); setDevClickCount(prev => prev + 1); }} 
+            className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center font-bold text-xs text-white shadow-sm select-none cursor-pointer active:scale-95 transition-all"
+            title="UXMate Workspace"
+          >
+            UX
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="font-bold text-base tracking-tight text-slate-900">UXMate</span>
+            {activeProject && (
+              <span className="hidden sm:inline text-xs text-slate-400 truncate max-w-[200px]">
+                · {activeProject.title}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Zone 2: Navigation Links & Search */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsQuickSearchOpen(true)}
+            className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition-all border border-slate-200"
+            title="Press Cmd+K or Ctrl+K"
+          >
+            <IconSearch className="w-3.5 h-3.5 text-slate-400" />
+            <span>Search & Jump...</span>
+            <kbd className="px-1.5 py-0.5 rounded bg-white text-[10px] font-mono text-slate-500 border border-slate-200 shadow-2xs font-semibold">⌘K</kbd>
+          </button>
+        </div>
+
+        {/* Zone 3: Primary Actions */}
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-medium transition-all"
+          >
+            <IconPlus className="w-3.5 h-3.5" />
+            <span>New Project</span>
+          </button>
+
+          {activeProject && (
+            <Button
+              onClick={() => setExportProject(activeProject)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-black text-white text-xs font-semibold shadow-sm transition-all"
+            >
+              <IconDownload className="w-3.5 h-3.5" />
+              <span>Export Case Study</span>
+            </Button>
+          )}
+
+          {isDevMode && (
+            <button onClick={() => setIsDebugOpen(true)} className="p-1.5 rounded bg-red-50 text-red-500">
+              <IconBug className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </header>
 
+      {/* Main Container */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-[1600px] mx-auto w-full md:p-6 md:gap-6 relative">
         <Sidebar 
-          state={state} activeProject={activeProject}
+          state={state} 
+          activeProject={activeProject}
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           switchProject={(id) => { setState(prev => ({ ...prev, activeProjectId: id })); setShowMobileProjects(false); }}
-          deleteProject={deleteProject} duplicateProject={duplicateProject}
+          deleteProject={deleteProject} 
+          duplicateProject={duplicateProject}
           onExport={setExportProject}
-          mobileOpen={showMobileProjects} onCloseMobile={() => setShowMobileProjects(false)}
+          mobileOpen={showMobileProjects} 
+          onCloseMobile={() => setShowMobileProjects(false)}
           currentStepId={currentStepId}
           onStepSelect={handleStepSelect}
         />
@@ -151,8 +298,20 @@ const App: React.FC = () => {
           project={activeProject} 
           updateProject={updateProject} 
           updateStepData={updateStepData}
-          restoreProjectVersion={(v) => { if(activeProject) updateProject(activeProject.id, { notes: v.notes, steps: v.stepData || activeProject.steps }); setToast({ message: 'Restored history version!', type: 'success' }); }}
-          deleteAsset={(idx) => { if(activeProject) { const a = [...activeProject.assets]; a.splice(idx, 1); updateProject(activeProject.id, { assets: a }); setToast({ message: 'Artifact removed', type: 'info' }); } }}
+          restoreProjectVersion={(v) => { 
+            if (activeProject) {
+              updateProject(activeProject.id, { notes: v.notes, steps: v.stepData || activeProject.steps }); 
+              setToast({ message: 'Restored history version!', type: 'success' }); 
+            }
+          }}
+          deleteAsset={(idx) => { 
+            if (activeProject) { 
+              const a = [...activeProject.assets]; 
+              a.splice(idx, 1); 
+              updateProject(activeProject.id, { assets: a }); 
+              setToast({ message: 'Evidence removed', type: 'info' }); 
+            } 
+          }}
           onReplaceAsset={() => {}} 
           isGuideOpen={isGuideOpen}
           setIsGuideOpen={setIsGuideOpen}
@@ -160,91 +319,104 @@ const App: React.FC = () => {
           onUploadAsset={handleAssetUpload}
           currentStepId={currentStepId}
           onStepSelect={handleStepSelect}
-          className="pb-32 md:pb-0"
+          className="pb-24 md:pb-0"
         />
       </div>
 
-      {/* Unified Master Command Bar (Mobile) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-[100px] bg-white/95 backdrop-blur-2xl border-t border-slate-100 flex flex-col items-center justify-start z-50 shadow-sheet pb-safe px-4 pt-2">
-        <div className="w-full flex items-center justify-between mb-1 px-4">
-           <button 
-             onClick={() => prevStep && handleStepSelect(prevStep.id)} 
-             disabled={!prevStep}
-             className={`flex items-center gap-1 py-1 text-[9px] font-black uppercase tracking-widest transition-opacity ${!prevStep ? 'opacity-0' : 'text-slate-400 active:scale-95'}`}
-           >
-             <IconArrowRight className="w-3.5 h-3.5 rotate-180" /> Back
-           </button>
-           <button 
-             onClick={() => nextStep ? handleStepSelect(nextStep.id) : setExportProject(activeProject)} 
-             className="flex items-center gap-1 py-1 text-[9px] font-black uppercase tracking-widest text-blue-600 active:scale-95"
-           >
-             {nextStep ? 'Next Phase' : 'Finalize'} <IconArrowRight className="w-3.5 h-3.5" />
-           </button>
-        </div>
+      {/* Mobile Bottom Navigation (Fitts's Law thumb zone) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-md border-t border-slate-200 flex items-center justify-around z-50 px-4 pt-safe">
+        <button 
+          onClick={() => setShowMobileProjects(prev => !prev)} 
+          className="flex flex-col items-center gap-1 text-slate-600 hover:text-slate-900 active:scale-95"
+        >
+          <IconMenu className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Roadmap</span>
+        </button>
 
-        <div className="w-full grid grid-cols-5 items-center h-14">
-          <NavButton active={showMobileProjects} icon={IconMenu} label="Stages" onClick={() => { setShowMobileProjects(!showMobileProjects); setIsGuideOpen(false); }} />
-          
-          <div className="flex justify-center">
-            <button 
-                onClick={toggleStepCompletion} 
-                className={`w-11 h-11 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-90 border-2 ${isStepComplete ? 'bg-emerald-500 border-emerald-200 text-white shadow-lg' : 'bg-slate-50 border-slate-200 text-slate-300'}`}
-            >
-                <IconCheck className="w-6 h-6" />
-                <span className="text-[7px] font-black uppercase tracking-tighter mt-0.5">{isStepComplete ? 'Done' : 'Finish'}</span>
-            </button>
-          </div>
+        <button 
+          onClick={() => prevStep && handleStepSelect(prevStep.id)} 
+          disabled={!prevStep}
+          className={`flex flex-col items-center gap-1 transition-opacity ${!prevStep ? 'opacity-30' : 'text-slate-600 hover:text-slate-900 active:scale-95'}`}
+        >
+          <IconArrowRight className="w-5 h-5 rotate-180" />
+          <span className="text-[10px] font-medium">Back</span>
+        </button>
 
-          <div className="flex justify-center">
-            <button 
-              onClick={() => setIsCreateModalOpen(true)} 
-              className="w-12 h-12 bg-slate-900 rounded-3xl text-white shadow-fab flex items-center justify-center active:scale-90 transition-transform border-4 border-white"
-            >
-              <IconPlus className="w-6 h-6" />
-            </button>
-          </div>
-          
-          <div className="flex justify-center">
-             <div className="w-11 h-11 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 opacity-30">
-               <IconArrowRight className="w-6 h-6" />
-             </div>
-          </div>
+        <button 
+          onClick={() => setIsCreateModalOpen(true)} 
+          className="w-11 h-11 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-md active:scale-90 transition-transform"
+          title="Create New Project"
+        >
+          <IconPlus className="w-5 h-5" />
+        </button>
 
-          <NavButton active={isGuideOpen} icon={IconLayout} label="Toolkit" onClick={() => { setIsGuideOpen(!isGuideOpen); setShowMobileProjects(false); }} />
-        </div>
+        <button 
+          onClick={() => nextStep ? handleStepSelect(nextStep.id) : activeProject && setExportProject(activeProject)} 
+          className="flex flex-col items-center gap-1 text-slate-900 font-semibold active:scale-95"
+        >
+          <IconArrowRight className="w-5 h-5 text-blue-600" />
+          <span className="text-[10px] text-blue-600 font-bold">{nextStep ? 'Next' : 'Export'}</span>
+        </button>
+
+        <button 
+          onClick={() => activeProject && setExportProject(activeProject)} 
+          className="flex flex-col items-center gap-1 text-slate-600 hover:text-slate-900 active:scale-95"
+        >
+          <IconDownload className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Case Study</span>
+        </button>
       </nav>
 
+      {/* Global Modals */}
       <Tour />
-      <CreateProjectModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onCreate={handleCreateProject} />
+      
+      <CreateProjectModal 
+        isOpen={isCreateModalOpen} 
+        onClose={() => setIsCreateModalOpen(false)} 
+        onCreate={handleCreateProject} 
+      />
+
       <ExportModal 
         project={exportProject} 
         isOpen={!!exportProject} 
         onClose={() => setExportProject(null)} 
         onUpdateProject={updateProject} 
       />
-      <ConfirmModal isOpen={confirmConfig.isOpen} title={confirmConfig.title} message={confirmConfig.message} onConfirm={confirmConfig.onConfirm} onClose={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))} />
+
+      <ConfirmModal 
+        isOpen={confirmConfig.isOpen} 
+        title={confirmConfig.title} 
+        message={confirmConfig.message} 
+        onConfirm={confirmConfig.onConfirm} 
+        onClose={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))} 
+      />
+
+      <QuickSearchModal 
+        isOpen={isQuickSearchOpen} 
+        onClose={() => setIsQuickSearchOpen(false)} 
+        onSelectStage={handleStepSelect}
+        onOpenCreateProject={() => setIsCreateModalOpen(true)}
+        onOpenExport={() => activeProject && setExportProject(activeProject)}
+        projects={Object.values(state.projects)}
+        activeProjectId={state.activeProjectId}
+        onSelectProject={(id) => { setState(prev => ({ ...prev, activeProjectId: id })); }}
+      />
+
       {toast && <Toast message={toast.message} type={toast.type} onUndo={toast.onUndo} onClose={() => setToast(null)} />}
 
       {isDebugOpen && (
         <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-           <div className="bg-white rounded-[2rem] w-full max-w-lg h-[60vh] flex flex-col overflow-hidden shadow-2xl">
-              <div className="p-6 border-b flex justify-between items-center bg-slate-950 text-white">
-                <h2 className="font-black text-sm uppercase tracking-widest">System Debug</h2>
-                <button onClick={() => setIsDebugOpen(false)}><IconClose className="w-6 h-6"/></button>
+           <div className="bg-white rounded-2xl w-full max-w-lg h-[60vh] flex flex-col overflow-hidden shadow-2xl">
+              <div className="p-4 border-b flex justify-between items-center bg-slate-900 text-white">
+                <h2 className="font-bold text-xs uppercase tracking-wider">System State</h2>
+                <button onClick={() => setIsDebugOpen(false)}><IconClose className="w-5 h-5"/></button>
               </div>
-              <pre className="flex-1 overflow-auto bg-slate-900 text-emerald-400 p-6 text-[10px] font-mono leading-relaxed">{JSON.stringify(state, null, 2)}</pre>
+              <pre className="flex-1 overflow-auto bg-slate-900 text-emerald-400 p-4 text-[10px] font-mono leading-relaxed">{JSON.stringify(state, null, 2)}</pre>
            </div>
         </div>
       )}
     </div>
   );
 };
-
-const NavButton = ({ active, icon: Icon, label, onClick }: any) => (
-  <button onClick={onClick} className={`flex flex-col items-center gap-1 transition-all active:scale-95 ${active ? 'text-blue-600' : 'text-slate-400'}`}>
-    <Icon className="w-5 h-5 mb-0.5" />
-    <span className="text-[8px] font-black uppercase tracking-[0.05em]">{label}</span>
-  </button>
-);
 
 export default App;

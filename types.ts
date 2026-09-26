@@ -41,6 +41,53 @@ export interface ProjectVersion {
 export interface StepData {
   notes: string;
   isComplete: boolean;
+  userFlowNodes?: UserFlowNode[];
+  uxLawsAudit?: Record<string, boolean>;
+}
+
+export interface UserFlowNode {
+  id: string;
+  type: 'entry' | 'screen' | 'action' | 'decision' | 'delight' | 'exit';
+  title: string;
+  description: string;
+  notes?: string;
+}
+
+export interface UXLaw {
+  id: string;
+  name: string;
+  subtitle: string;
+  rule: string;
+  summary: string;
+  icon: string;
+  category: 'Ergonomics' | 'Cognition' | 'Mental Models' | 'Delight';
+  color: string;
+  keyPractices: string[];
+  auditChecklist: string[];
+  formula?: string;
+  templateSnippet: string;
+}
+
+export interface PerfectUserFlowPhase {
+  id: string;
+  phaseNumber: number;
+  name: string;
+  icon: string;
+  description: string;
+  uxLawConnection: string;
+  questions: string[];
+  checklist: string[];
+  defaultTemplate: string;
+}
+
+export interface MacroPhase {
+  id: string;
+  name: string;
+  shortName: string;
+  description: string;
+  stageIds: string[];
+  icon: string;
+  color: string;
 }
 
 export interface Project {
