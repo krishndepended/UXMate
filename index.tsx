@@ -21,3 +21,11 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {
+      // Ignore if dev/preview environment restricts service workers
+    });
+  });
+}

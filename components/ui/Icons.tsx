@@ -238,3 +238,10 @@ export const IconCode = ({ className }: { className?: string }) => (
   </svg>
 );
 
+export const IconDiamond = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25l8.25 8.25-8.25 11.25L3.75 10.5 12 2.25z" />
+  </svg>
+);
+
+
